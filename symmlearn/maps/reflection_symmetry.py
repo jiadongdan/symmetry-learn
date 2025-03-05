@@ -4,22 +4,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def compute_kernels(n_max, size):
+def compute_kernels_weights(n_max, size):
     zps = ZPs(n_max=n_max, size=size)
     kernels = zps.polynomials
-    mask1 = zps.m > 1
-    mask2 = zps.m < -1
-    A_kernels = kernels[mask1]
-    B_kernels = kernels[mask2]
-    return A_kernels, B_kernels
+    mask = zps.m > 1
+    inds= nm2j(zps.n[mask], -zps.m[mask])
+    A_kernels = kernels[mask]
+    B_kernels = kernels[inds]
 
-def compute_tensor_weights(n_max, size):
+    # compute weights
     theta = np.linspace(0, 2 * np.pi, 361)[0:360]
-    ms = zm.to_complex().m
+    ms = zps.m[mask]
     cosmt = np.array([np.cos(m * t) for t in theta for m in ms]).reshape(len(theta), -1)
     sinmt = np.array([np.sin(m * t) for t in theta for m in ms]).reshape(len(theta), -1)
-    matrix = np.hstack([cosmt, sinmt])  # 360 x 60
-
+    weights = np.hstack([cosmt, sinmt])  # 360 x 60
+    return A_kernels, B_kernels, weights
 
 
 class FixedConvLayer(nn.Module):

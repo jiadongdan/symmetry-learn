@@ -62,12 +62,24 @@ class FixedConvLayer(nn.Module):
         self.register_buffer('linear_weight', linear_weight)  # Store as non-trainable
 
     def forward(self, x):
-        x = x.unsqueeze(0).unsqueeze(0)  # Shape becomes (1, 1, H, W)
-        x1 = self.norm_factor * F.conv2d(x, self.kernels, stride=self.stride, padding=self.padding).squeeze(0)
-        x2 = x1 ** 2
+        if x.dim() == 2:  # Single image case (H, W)
+            x = x.unsqueeze(0).unsqueeze(0)  # Shape becomes (1, 1, H, W)
+        elif x.dim() == 3:  # Stack of images (num_imgs, H, W)
+            x = x.unsqueeze(1)  # Shape becomes (num_imgs, 1, H, W)
+        else:
+            raise ValueError("Input must be of shape (H, W) or (num_imgs, H, W)")
 
-        # Apply fixed linear transformation along first axis
-        x3 = torch.matmul(self.linear_weight, x2.view(x2.shape[0], -1))  # (M, N) @ (N, H*W) -> (M, H*W)
-        x3 = x3.view(-1, x2.shape[1], x2.shape[2])  # Reshape back to (M, H, W)
+        x1 = self.norm_factor * F.conv2d(x, self.kernels, stride=self.stride, padding=self.padding)
+        x2 = x1 ** 2    # Shape becomes (num_imgs, num_kernels, H, W)
+
+        # Reshape x2 to (num_imgs, num_kernels, H*W)
+        x2_flat = x2.view(x2.shape[0], x2.shape[1], -1)  # (num_imgs, num_kernels, H*W)
+
+        # Apply linear transformation: (another_num, num_kernels) @ (num_imgs, num_kernels, H*W) -> (num_imgs, another_num, H*W)
+        x3 = torch.matmul(self.linear_weight, x2_flat)  # (num_imgs, another_num, H*W)
+
+        # Reshape back to (num_imgs, another_num, H, W)
+        x3 = x3.view(x2.shape[0], -1, x2.shape[2], x2.shape[3])
 
         return x3
+

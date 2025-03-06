@@ -24,23 +24,26 @@ def compute_kernels_weights(n_max, size):
 class FixedConvLayer(nn.Module):
     def __init__(self, kernels: torch.Tensor, linear_weight: torch.Tensor, stride=1):
         super(FixedConvLayer, self).__init__()
+        num_kernels = kernels.shape[0]
+        kernels_A = kernels[0:num_kernels // 2]
+        kernels_B = kernels[num_kernels //2 :]
         assert kernels.shape[1] % 2 == 1 and kernels.shape[2] % 2 == 1, "Kernel size must be odd to preserve input shape."
-        self.register_buffer('kernels', kernels.unsqueeze(1))  # Shape becomes (N, 1, H, W)
+        self.register_buffer('kernels', kernels_A.unsqueeze(1))  # Shape becomes (N, 1, H, W)
+        self.register_buffer('kernels', kernels_B.unsqueeze(1))  # Shape becomes (N, 1, H, W)
         self.stride = stride
         self.kernel_size = (kernels.shape[1], kernels.shape[2])  # (H, W)
         self.padding = ((self.kernel_size[0] - 1) // 2, (self.kernel_size[1] - 1) // 2)  # (pad_H, pad_W)
         self.norm_factor = 4./(self.kernel_size[0] * self.kernel_size[1]) / np.pi  # normalizingh factor
 
         # Linear layer with fixed weight
-        self.register_buffer('linear_weight', linear_weight)  # Store as non-trainable
+        self.register_buffer('linear_weight', self.linear_weight)  # Store as non-trainable
 
     def forward(self, x):
         x = x.unsqueeze(0).unsqueeze(0)  # Shape becomes (1, 1, H, W)
-        x1 = self.norm_factor * F.conv2d(x, self.kernels, stride=self.stride, padding=self.padding).squeeze(0)
-        x2 = x1 ** 2
+        A = self.norm_factor * F.conv2d(x, self.kernels_A, stride=self.stride, padding=self.padding).squeeze(0)
+        B = self.norm_factor * F.conv2d(x, self.kernels_B, stride=self.stride, padding=self.padding).squeeze(0)
+        x_part1 = A**2 - B**2
+        x_part2 = 2 * A * B
+        # concatenate part1 and part2
 
-        # Apply fixed linear transformation along first axis
-        x3 = torch.matmul(self.linear_weight, x2.view(x2.shape[0], -1))  # (M, N) @ (N, H*W) -> (M, H*W)
-        x3 = x3.view(-1, x2.shape[1], x2.shape[2])  # Reshape back to (M, H, W)
-
-        return x3
+        return x_part1

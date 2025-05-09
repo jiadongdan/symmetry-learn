@@ -4,6 +4,7 @@ from ase.cell import Cell
 from ase import Atoms
 
 from ._wyckoff_position import WyckoffPosition, wyckoff_pos
+from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
 
 def generate_plane_group_cell(
         pg_number: int,
@@ -38,10 +39,10 @@ def generate_plane_group_cell(
         a fixed z-axis of length 12.
     """
     # 2D Bravais lattice classes
-    oblique     = {1, 2}
+    oblique = {1, 2}
     rectangular = set(range(3, 10))
-    square      = {10, 11, 12}
-    hexagonal   = set(range(13, 18))
+    square = {10, 11, 12}
+    hexagonal = set(range(13, 18))
 
     rng = np.random.default_rng(seed)
     # Sample a if needed
@@ -144,6 +145,43 @@ def is_new_atoms_better(
     else:
         return score2 > score1
 
+def random_supercell(size_min, size_max, rng):
+    size = rng.integers(size_min, size_max, endpoint=True)
+    return [size, size, 1]
+
+def make_cell_rectangular(atoms: Atoms):
+    new_atoms = atoms.copy()
+    cell = new_atoms.cell.copy()
+
+    # in xy plane
+    cell[0, 1] = 0  # Remove xy shear
+    cell[1, 0] = 0  # Remove yx shear
+
+    new_atoms.set_cell(cell, scale_atoms=False) # scale_atoms=False, Prevent atomic position scaling
+    new_atoms.wrap()  # Ensure atoms are inside the new cell
+    return new_atoms
+
+def make_cell_square(atoms: Atoms):
+    new_atoms = make_cell_rectangular(atoms)
+    cell = new_atoms.cell.copy()
+
+    # Create the new square cell
+    size = min(cell[0, 0], cell[1, 1])
+    cell[0, 0] = size
+    cell[1, 1] = size
+
+    # Before set_cell, we have to make periodic boundary condition False,
+    # then scaled_positions won't be scaled to [0, 1]
+    new_atoms.set_pbc(False)
+
+    # Apply the new cell
+    new_atoms.set_cell(cell, scale_atoms=False)  # positions do not change, but scaled_positions updated
+    scaled_positions = new_atoms.get_scaled_positions()
+    # Remove atoms that are outside [0,1) in any direction
+    mask = (scaled_positions >= 0).all(axis=1) & (scaled_positions < 1).all(axis=1)
+    new_atoms_ = new_atoms[mask]  # Remove atoms outside the new cell
+
+    return new_atoms_
 
 class PlaneGroup:
     """
@@ -278,3 +316,26 @@ class PlaneGroup:
                 best_atoms = atoms_candidate.copy()
 
         return best_atoms
+
+    def generate_lattice(self,
+                         structure_dict,
+                         thickness: float = 12.,
+                         samples: int = 10,
+                         size_min: int = 10,
+                         size_max: int = 20,
+                         seed: Optional[int] = None
+        ) -> Atoms:
+        rng = np.random.default_rng(seed)
+        atoms_unit_cell = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
+                                                                thickness=thickness,
+                                                                samples=samples,
+                                                                seed=rng)
+        supercell = random_supercell(size_min, size_max, rng)
+        angle_deg = rng.uniform(0, 360)
+
+        atoms = atoms_unit_cell * supercell
+        atoms = make_cell_square(atoms)
+        atoms = rotate_atoms_xy_center(atoms, angle_deg)
+        atoms = crop_atoms_xy_center(atoms)
+
+        return atoms

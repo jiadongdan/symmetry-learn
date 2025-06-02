@@ -5,7 +5,10 @@ from scipy.ndimage import gaussian_filter
 from scipy.spatial import Delaunay
 from itertools import combinations
 
+from mtflearn.features import KeyPoints
+from mtflearn.features import ZPs
 
+from ..sampling._poisson_disk_sampling import poisson_disk_sampling
 
 def _estimate_sigma(atoms, method='mean'):
     """
@@ -50,7 +53,7 @@ def _estimate_sigma(atoms, method='mean'):
     else:
         raise ValueError(f"Invalid method '{method}'; choose from 'min', 'mean', 'median'")
 
-    return stat
+    return stat/4.
 
 
 def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
@@ -112,7 +115,7 @@ def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
     # 5) Blur each channel & sum
     img = np.zeros((size, size), float)
     for s, im in images.items():
-        img += gaussian_filter(im, sigma=sigma_map[s])
+        img += gaussian_filter(im, sigma=sigma_map[s], mode='constant')
 
     # 6) Normalize to [0,1]
     mn, mx = img.min(), img.max()
@@ -123,17 +126,65 @@ def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
 
     return img
 
+def estimate_patch_size(atoms, unit_cell, image_size):
+    """
+    Estimate how many pixels (patch size) correspond to one unit cell,
+    given a full‐image that covers `atoms` on an `image_size`×`image_size` grid.
+    The result is rounded to the nearest odd integer.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        The larger system whose full‐cell image is `image_size` px on a side.
+    unit_cell : array-like, shape (3,3)
+        The 3×3 cell matrix of the smaller “unit” cell whose patch size
+        you want to extract (in the same length units as `atoms.get_cell()`).
+    image_size : int or float
+        The pixel width (and height) of the square image of `atoms`.
+
+    Returns
+    -------
+    int
+        Side length in pixels (odd integer) of one `unit_cell` patch.
+    """
+    def _xy_square_side(cell):
+        # project the a- and b-vectors onto xy and get the bounding-box side
+        c = np.asarray(cell)
+        v1, v2 = c[0][:2], c[1][:2]
+        corners = np.array([[0, 0], v1, v2, v1 + v2])
+        mins, maxs = corners.min(axis=0), corners.max(axis=0)
+        w, h = maxs - mins
+        return float(max(w, h))
+
+    full_side = _xy_square_side(atoms.get_cell())
+    unit_side = _xy_square_side(unit_cell)
+    raw       = (unit_side / full_side) * image_size * 2
+
+    n = int(round(raw))
+    if n % 2 == 1:
+        return n
+
+    # choose the nearest odd neighbor
+    lower, higher = n - 1, n + 1
+    if lower < 1:
+        return higher
+    return lower if abs(raw - lower) <= abs(raw - higher) else higher
+
 class PGLattice:
 
-    def __init__(self, pg_number, atoms):
+    def __init__(self, pg_number, atoms, unit_cell):
         self.pg_number = pg_number
         self.atoms = atoms
+        self.unit_cell = unit_cell
         self.sigma_ = _estimate_sigma(self.atoms)
 
     def get_image(self, size=512, sigma_map=None, amplitude_map=None):
         if sigma_map is None:
             sigma_map = self.sigma_ * (size - 1)
-        return atoms2image(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
+        # estimate patch size
+        patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
+        img = atoms2image(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
+        return PGImage(self.pg_number, img, patch_size)
 
 
 class PGImage:
@@ -142,11 +193,19 @@ class PGImage:
         self.pg_number = pg_number
         self.data = data
         self.patch_size = patch_size
-
         self.symmetry_maps = None
 
-    def get_patches(self):
-        pass
 
-    def get_X(self):
-        pass
+    def get_X(self, n_max=10, radius=None, seed=None):
+        if radius is None:
+            radius = self.patch_size / 3.
+        # get the points
+        self.pts = poisson_disk_sampling(radius=radius, size=self.data.shape[0], seed=seed)
+        # extract patches
+        kp = KeyPoints(self.pts, self.data, self.patch_size)
+        self.ps = kp.extract_patches(self.patch_size)
+        self.pts = kp.pts
+        # get features
+        zps = ZPs(n_max=n_max, size=self.patch_size)
+        m = zps.fit_transform(self.ps)
+        return m

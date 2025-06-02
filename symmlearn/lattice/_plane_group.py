@@ -5,6 +5,7 @@ from ase import Atoms
 
 from ._wyckoff_position import WyckoffPosition, wyckoff_pos
 from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
+from ._pg_image import PGLattice
 
 def generate_plane_group_cell(
         pg_number: int,
@@ -338,4 +339,4 @@ class PlaneGroup:
         atoms = rotate_atoms_xy_center(atoms, angle_deg)
         atoms = crop_atoms_xy_center(atoms)
 
-        return atoms
+        return PGLattice(pg_number=self.pg_number, atoms=atoms, unit_cell=atoms_unit_cell.cell)

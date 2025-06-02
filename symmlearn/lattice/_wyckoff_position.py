@@ -166,3 +166,13 @@ class WyckoffPosition:
                 out.append((xv % 1.0, yv % 1.0))
 
         return np.asarray(out, dtype=float)
+
+class WyckoffStructure:
+
+    def __init__(self, pg_num, structure_letters):
+        self.pg_num = pg_num
+        self.unique_atoms = len(structure_letters)
+
+    @property
+    def num_atoms(self):
+        return sum([len(wyckoff_pos[self.pg_num][letter]) for letters in structure_letters for letter in letters])

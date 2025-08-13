@@ -3,6 +3,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from mtflearn.features import ZPs
+
+def check_array1d(input):
+    """
+    Converts a scalar or array-like input into a 1-dimensional numpy array.
+
+    Parameters:
+    input (scalar or array-like): The input to convert to a 1D numpy array.
+
+    Returns:
+    numpy.ndarray: A 1D numpy array based on the provided input.
+    """
+    # Convert the input to a numpy array, np.atleast_1d ensures it's at least 1D
+    array = np.atleast_1d(input)
+
+    # Flatten the array to ensure it is 1D
+    return array.ravel()
+
 
 def construct_rot_maps_matrix(n_folds, m):
     """
@@ -48,9 +66,9 @@ def compute_kernels_and_linear_weights(n_max, size, n_folds=[2, 3, 4, 6]):
     linear_weights = construct_rot_maps_matrix(n_folds, zps.m)
     return kernels, linear_weights
 
-class FixedConvLayer(nn.Module):
+class RotMaps(nn.Module):
     def __init__(self, kernels: torch.Tensor, linear_weight: torch.Tensor, stride=1):
-        super(FixedConvLayer, self).__init__()
+        super(RotMaps, self).__init__()
         assert kernels.shape[1] % 2 == 1 and kernels.shape[2] % 2 == 1, "Kernel size must be odd to preserve input shape."
         self.register_buffer('kernels', kernels.unsqueeze(1))  # Shape becomes (N, 1, H, W)
         self.stride = stride

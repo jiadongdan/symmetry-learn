@@ -1,5 +1,7 @@
-import numpy as np
 import numbers
+import numpy as np
+import matplotlib.pyplot as plt
+
 from ase import Atoms
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import Delaunay
@@ -9,6 +11,9 @@ from mtflearn.features import KeyPoints
 from mtflearn.features import ZPs
 
 from ..sampling._poisson_disk_sampling import poisson_disk_sampling
+from ..maps import get_rot_maps, get_ref_map
+from ._estimate_patch_size import estimate_patch_size_from_img
+
 
 def _estimate_sigma(atoms, method='mean'):
     """
@@ -53,7 +58,7 @@ def _estimate_sigma(atoms, method='mean'):
     else:
         raise ValueError(f"Invalid method '{method}'; choose from 'min', 'mean', 'median'")
 
-    return stat/4.
+    return stat/5.   # we divide it by 5 when using mean method
 
 
 def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
@@ -94,15 +99,14 @@ def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
     # 3) Build sigma_map dict
     if sigma_map is None:
         # estimate one sigma and apply to all
-        sigma_val = _estimate_sigma(atoms, size)
+        sigma_val = _estimate_sigma(atoms, method='mean') * (size)
         sigma_map = {s: sigma_val for s in unique_syms}
     elif isinstance(sigma_map, numbers.Number):
         # single float → broadcast to all
         sigma_map = {s: float(sigma_map) for s in unique_syms}
     else:
         # assume dict; you might validate keys here if desired
-        sigma_map = {s: float(sigma_map.get(s, _estimate_sigma(atoms, size)))
-                     for s in unique_syms}
+        sigma_map = {s: sigma_map[s] for s in unique_syms}
 
     # 4) Deposit impulses at fractional coords
     images = {s: np.zeros((size, size), float) for s in unique_syms}
@@ -172,40 +176,114 @@ def estimate_patch_size(atoms, unit_cell, image_size):
 
 class PGLattice:
 
-    def __init__(self, pg_number, atoms, unit_cell):
+    def __init__(self, pg_number, atoms, unit_cell, sigma_method='min'):
         self.pg_number = pg_number
         self.atoms = atoms
         self.unit_cell = unit_cell
-        self.sigma_ = _estimate_sigma(self.atoms)
+        self.sigma_ = _estimate_sigma(self.atoms, method=sigma_method)
 
     def get_image(self, size=512, sigma_map=None, amplitude_map=None):
         if sigma_map is None:
-            sigma_map = self.sigma_ * (size - 1)
-        # estimate patch size
-        patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
+            sigma_map = self.sigma_ * (size)
+        # estimate patch size from atoms
+        # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
         img = atoms2image(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
+        # estimate patch size from img
+        s = estimate_patch_size_from_img(img) * 4
+        patch_size = s//2 * 2 + 1
         return PGImage(self.pg_number, img, patch_size)
 
 
 class PGImage:
 
-    def __init__(self, pg_number, data, patch_size):
+    def __init__(self, pg_number, img, patch_size):
         self.pg_number = pg_number
-        self.data = data
+        self.img = img
         self.patch_size = patch_size
-        self.symmetry_maps = None
+        s = self.patch_size // 2
+        self.img_crop = self.img[s:-s, s:-s]
+        self.rot_maps = None
+        self.ref_map = None
+        self.has_symm_maps = False
 
+        self.ps = None
+
+    def compute_symm_maps(self, n_max=12, patch_size=None):
+        if patch_size is None:
+            patch_size = self.patch_size
+        # get the rotational and reflectional maps
+        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=patch_size, normalize_output=True)
+        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=patch_size, normalize_output=True)
+        # crop
+        s = self.patch_size // 2
+        self.rot_maps = rot_maps[:, s:-s, s:-s]
+        self.ref_map = ref_map[s:-s, s:-s]
+        self.has_symm_maps = True
+
+    def save_pgi(self, filename):
+        if not self.has_symm_maps:
+            raise ValueError("Symmetry maps have not been computed. Run compute_symm_maps() first.")
+
+        # Ensure rot_maps and ref_map are in compatible shapes
+        # img_crop: (H, W)
+        # ref_map:  (H, W)
+        # rot_maps: (N_rot, H, W)
+        # Stack into one array: shape = (1 + 1 + N_rot, H, W)
+        data = np.concatenate(
+            [
+                self.img_crop[None, :, :],         # shape (1, H, W)
+                self.ref_map[None, :, :],          # shape (1, H, W)
+                self.rot_maps                      # shape (N_rot, H, W)
+            ],
+            axis=0
+        )
+
+        # Save to compressed NPZ
+        np.savez_compressed(
+            filename,
+            data=data,
+            pg_number=self.pg_number,
+            patch_size=self.patch_size
+        )
 
     def get_X(self, n_max=10, radius=None, seed=None):
+        # get the rotational and reflectional maps
+        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=self.patch_size, normalize_output=True)
+        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=self.patch_size, normalize_output=True)
+        # crop
+        s = self.patch_size // 2
+        self.rot_maps = rot_maps[:, s:-s, s:-s]
+        self.ref_map = ref_map[s:-s, s:-s]
+
         if radius is None:
-            radius = self.patch_size / 3.
+            radius = self.patch_size / 4.
         # get the points
-        self.pts = poisson_disk_sampling(radius=radius, size=self.data.shape[0], seed=seed)
-        # extract patches
-        kp = KeyPoints(self.pts, self.data, self.patch_size)
-        self.ps = kp.extract_patches(self.patch_size)
-        self.pts = kp.pts
-        # get features
+        self.pts = poisson_disk_sampling(radius=radius, size=self.img.shape[0], seed=seed)
+        # get ZPs
         zps = ZPs(n_max=n_max, size=self.patch_size)
-        m = zps.fit_transform(self.ps)
-        return m
+        # extract patches
+        data_arrays = np.vstack([self.img_crop[np.newaxis, :, :], self.ref_map[np.newaxis, :, :], self.rot_maps])
+        X = []
+        Xrot = []
+        ps_all = []
+        for data in data_arrays:
+            kp = KeyPoints(self.pts, data, self.patch_size)
+            ps = kp.extract_patches(self.patch_size)
+            # get features
+            m = zps.fit_transform(ps)
+            X.append(m.data)
+            Xrot.append(np.abs(m.to_complex().data))
+            ps_all.append(ps)
+        self.pts = kp.pts
+        self.ps = np.array(ps_all)
+        return np.hstack(X), np.hstack(Xrot)
+
+    def show(self, ax=None):
+        if ax is None:
+            fig, axes = plt.subplots(2, 3, figsize=(8, 5))
+        axes[0, 0].imshow(self.img_crop)
+        axes[1, 0].imshow(self.ref_map)
+        axes[0, 1].imshow(self.rot_maps[0])
+        axes[0, 2].imshow(self.rot_maps[1])
+        axes[1, 1].imshow(self.rot_maps[2])
+        axes[1, 2].imshow(self.rot_maps[3])

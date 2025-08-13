@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from mtflearn.features import ZPs
+from mtflearn.features import nm2j
+
 
 def compute_kernels_weights(n_max, size):
     zps = ZPs(n_max=n_max, size=size)
@@ -22,9 +25,9 @@ def compute_kernels_weights(n_max, size):
     return kernels, weights
 
 
-class FixedConvLayer(nn.Module):
+class RefMap(nn.Module):
     def __init__(self, kernels: torch.Tensor, linear_weight: torch.Tensor, stride=1):
-        super(FixedConvLayer, self).__init__()
+        super(RefMap, self).__init__()
         num_kernels = kernels.shape[0]
         kernels_A = kernels[0:num_kernels // 2]
         kernels_B = kernels[num_kernels //2 :]
@@ -56,8 +59,6 @@ class FixedConvLayer(nn.Module):
 
         # Normalize x2 along the second axis, why I set p=1?
         x2 = F.normalize(x2, p=1, dim=1)
-
-        print(x2.min(), x2.max())
 
         # Reshape x2 to (num_imgs, num_kernels, H*W)
         x2_flat = x2.view(x2.shape[0], x2.shape[1], -1)

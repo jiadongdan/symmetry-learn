@@ -322,8 +322,9 @@ class PlaneGroup:
                          structure_dict,
                          thickness: float = 12.,
                          samples: int = 10,
-                         size_min: int = 10,
-                         size_max: int = 20,
+                         size_min: int = 25,
+                         size_max: int = 35,
+                         sigma_method: str = 'mean',
                          seed: Optional[int] = None
         ) -> Atoms:
         rng = np.random.default_rng(seed)
@@ -339,4 +340,7 @@ class PlaneGroup:
         atoms = rotate_atoms_xy_center(atoms, angle_deg)
         atoms = crop_atoms_xy_center(atoms)
 
-        return PGLattice(pg_number=self.pg_number, atoms=atoms, unit_cell=atoms_unit_cell.cell)
+        return PGLattice(pg_number=self.pg_number,
+                         atoms=atoms,
+                         unit_cell=atoms_unit_cell.cell,
+                         sigma_method=sigma_method)

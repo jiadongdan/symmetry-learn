@@ -184,7 +184,13 @@ class PGLattice:
 
     def get_image(self, size=512, sigma_map=None, amplitude_map=None):
         if sigma_map is None:
-            sigma_map = self.sigma_ * (size)
+            sigma_min = 1.2
+            if self.sigma_ > sigma_min:
+                sigma_max = self.sigma_ * (size)
+            else:
+                sigma_max = 2
+            sigma_map = np.random.uniform(sigma_min, sigma_max)
+
         # estimate patch size from atoms
         # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
         img = atoms2image(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
@@ -208,12 +214,12 @@ class PGImage:
 
         self.ps = None
 
-    def compute_symm_maps(self, n_max=12, patch_size=None):
+    def compute_symm_maps(self, n_max=12, patch_size=None, normalize_output=False):
         if patch_size is None:
             patch_size = self.patch_size
         # get the rotational and reflectional maps
-        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=patch_size, normalize_output=True)
-        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=patch_size, normalize_output=True)
+        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_output)
+        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_output)
         # crop
         s = self.patch_size // 2
         self.rot_maps = rot_maps[:, s:-s, s:-s]
@@ -236,7 +242,7 @@ class PGImage:
                 self.rot_maps                      # shape (N_rot, H, W)
             ],
             axis=0
-        )
+        ).astype(np.float32)  # ensure float32
 
         # Save to compressed NPZ
         np.savez_compressed(

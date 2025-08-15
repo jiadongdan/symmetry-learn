@@ -105,7 +105,7 @@ def _repulsive_energy_metric(atoms: Atoms, sigma: float=1.0, exponent: int=12) -
     i, j = np.triu_indices(len(atoms), k=1)
     rij = dmat[i, j]
     rij = np.clip(rij, 1e-6, None)
-    return float((sigma / rij)**exponent).sum()
+    return ((sigma / rij)**exponent).sum()
 
 def is_new_atoms_better(
         atoms1: Atoms,
@@ -279,7 +279,8 @@ class PlaneGroup:
             self,
             structure_dict,
             thickness: float = 12.,
-            samples: int = 10,
+            max_samples: int = 10,
+            metric_method: str = 'avg_nn',
             seed: Optional[int] = None
     ) -> Atoms:
         """
@@ -295,8 +296,9 @@ class PlaneGroup:
             The ASE Atoms object for the best-packed sample.
         """
         rng = np.random.default_rng(seed)
+        num_samples = rng.integers(2, max_samples)
         # pre-generate unique seeds for each sample
-        sample_seeds = rng.integers(0, 2**32, size=samples + 1)
+        sample_seeds = rng.integers(0, 2**32, size=num_samples)
 
         # first sample
         best_atoms = self.generate_unit_cell(
@@ -306,14 +308,14 @@ class PlaneGroup:
             seed=int(sample_seeds[0])
         )
 
-        for ss in sample_seeds[1:]:
+        for ss in sample_seeds:
             atoms_candidate = self.generate_unit_cell(
                 structure_dict,
                 cell=best_atoms.cell,
                 thickness=thickness,
                 seed=int(ss)
             )
-            if is_new_atoms_better(best_atoms, atoms_candidate):
+            if is_new_atoms_better(best_atoms, atoms_candidate, method=metric_method):
                 best_atoms = atoms_candidate.copy()
 
         return best_atoms
@@ -321,16 +323,18 @@ class PlaneGroup:
     def generate_lattice(self,
                          structure_dict,
                          thickness: float = 12.,
-                         samples: int = 10,
+                         max_samples: int = 10,
                          size_min: int = 25,
                          size_max: int = 35,
                          sigma_method: str = 'mean',
+                         metric_method: str = 'avg_nn',
                          seed: Optional[int] = None
         ) -> Atoms:
         rng = np.random.default_rng(seed)
         atoms_unit_cell = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
                                                                 thickness=thickness,
-                                                                samples=samples,
+                                                                max_samples=max_samples,
+                                                                metric_method=metric_method,
                                                                 seed=rng)
         supercell = random_supercell(size_min, size_max, rng)
         angle_deg = rng.uniform(0, 360)
@@ -342,5 +346,5 @@ class PlaneGroup:
 
         return PGLattice(pg_number=self.pg_number,
                          atoms=atoms,
-                         unit_cell=atoms_unit_cell.cell,
+                         unit_cell=atoms_unit_cell,
                          sigma_method=sigma_method)

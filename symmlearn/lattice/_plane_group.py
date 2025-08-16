@@ -296,7 +296,7 @@ class PlaneGroup:
             The ASE Atoms object for the best-packed sample.
         """
         rng = np.random.default_rng(seed)
-        num_samples = rng.integers(2, max_samples)
+        num_samples = rng.integers(1, max_samples, endpoint=True)
         # pre-generate unique seeds for each sample
         sample_seeds = rng.integers(0, 2**32, size=num_samples)
 
@@ -326,6 +326,7 @@ class PlaneGroup:
                          max_samples: int = 10,
                          size_min: int = 25,
                          size_max: int = 35,
+                         angle_deg = None,
                          sigma_method: str = 'mean',
                          metric_method: str = 'avg_nn',
                          seed: Optional[int] = None
@@ -337,7 +338,8 @@ class PlaneGroup:
                                                                 metric_method=metric_method,
                                                                 seed=rng)
         supercell = random_supercell(size_min, size_max, rng)
-        angle_deg = rng.uniform(0, 360)
+        if angle_deg is None:
+            angle_deg = rng.uniform(0, 360)
 
         atoms = atoms_unit_cell * supercell
         atoms = make_cell_square(atoms)

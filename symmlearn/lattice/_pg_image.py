@@ -214,12 +214,12 @@ class PGImage:
 
         self.ps = None
 
-    def compute_symm_maps(self, n_max=12, patch_size=None, normalize_output=False):
+    def compute_symm_maps(self, n_max=12, patch_size=None, normalize_rot=True, normalize_ref=False):
         if patch_size is None:
             patch_size = self.patch_size
         # get the rotational and reflectional maps
-        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_output)
-        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_output)
+        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_ref)
+        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_rot)
         # crop
         s = self.patch_size // 2
         self.rot_maps = rot_maps[:, s:-s, s:-s]

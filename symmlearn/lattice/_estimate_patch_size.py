@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import correlate, find_peaks
 from skimage.transform import warp_polar
+from scipy.ndimage import gaussian_filter1d
 
 def standardize_image(image):
     """
@@ -34,9 +35,10 @@ def radial_profile(data):
     line = warp_polar(data, center=(i, j)).mean(axis=0)[0:i]
     return line
 
-def estimate_patch_size_from_img(image, standardize=True, debug=False):
+def estimate_patch_size_from_img(image, sigma=3, standardize=True, debug=False):
     autocorr = autocorrelation(image=image, standardize=standardize)
     line_profile = radial_profile(autocorr)
+    line_profile = gaussian_filter1d(line_profile, sigma=sigma)
     peaks, _ = find_peaks(line_profile)
     if debug:
         plt.plot(peaks, line_profile[peaks], "x")

@@ -214,6 +214,30 @@ class PGImage:
 
         self.ps = None
 
+    @classmethod
+    def from_array(cls, data, pg_number, patch_size):
+        data = np.asarray(data, dtype=np.float32)
+        if data.ndim != 3 or data.shape[0] < 2:
+            raise ValueError("data must be (C, H, W) with C>=2: [img_crop, ref_map, rot_maps...]")
+
+        img_crop = data[0]
+        ref_map  = data[1]
+        rot_maps = data[2:] if data.shape[0] > 2 else None
+
+        # Use patch_size=1 so s=0; then immediately overwrite attributes to avoid empty slicing.
+        obj = cls(pg_number=int(pg_number), img=img_crop, patch_size=patch_size)
+        obj.img = img_crop
+        obj.img_crop = img_crop
+        obj.ref_map = ref_map
+        obj.rot_maps = rot_maps
+        obj.has_symm_maps = True
+        return obj
+
+    @classmethod
+    def from_npz_file(cls, filename):
+        pass
+
+
     def compute_symm_maps(self, n_max=12, patch_size=None, normalize_rot=True, normalize_ref=False):
         if patch_size is None:
             patch_size = self.patch_size
@@ -225,6 +249,23 @@ class PGImage:
         self.rot_maps = rot_maps[:, s:-s, s:-s]
         self.ref_map = ref_map[s:-s, s:-s]
         self.has_symm_maps = True
+
+    def get_patches(self, radius=None, scale=2., seed=None):
+        if radius is None:
+            radius = self.patch_size / scale
+        data_arrays = np.vstack([self.img_crop[np.newaxis, :, :], self.ref_map[np.newaxis, :, :], self.rot_maps])
+        if self.patch_size % 2 == 0:
+            s1 = self.patch_size // 2
+            s2 = self.patch_size // 2
+        else:
+            s1 = self.patch_size // 2
+            s2 = self.patch_size // 2 + 1
+        # get the points
+        self.pts = poisson_disk_sampling(radius=radius, size=self.img.shape[0], seed=seed)
+        kp = KeyPoints(self.pts, self.img_crop, self.patch_size)
+        self.pts = kp.pts
+        self.ps = np.array([data_arrays[:, y-s1:y+s2, x-s1:x+s2] for (x, y) in kp.pts])
+        return self.ps
 
     def save_pgi(self, filename):
         if not self.has_symm_maps:
@@ -249,7 +290,8 @@ class PGImage:
             filename,
             data=data,
             pg_number=self.pg_number,
-            patch_size=self.patch_size
+            patch_size=self.patch_size,
+            ps=self.ps
         )
 
     def get_X(self, n_max=10, radius=None, seed=None):
@@ -293,3 +335,4 @@ class PGImage:
         axes[0, 2].imshow(self.rot_maps[1])
         axes[1, 1].imshow(self.rot_maps[2])
         axes[1, 2].imshow(self.rot_maps[3])
+        axes[0, 0].scatter(self.pts[:, 0], self.pts[:, 1], color='r', s=10)

@@ -60,7 +60,7 @@ def _estimate_sigma(atoms, method='mean'):
     else:
         raise ValueError(f"Invalid method '{method}'; choose from 'min', 'max', 'mean', 'median'")
 
-    return stat/5.   # we divide it by 5 when using mean method
+    return stat
 
 
 def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
@@ -178,20 +178,18 @@ def estimate_patch_size(atoms, unit_cell, image_size):
 
 class PGLattice:
 
-    def __init__(self, pg_number, atoms, unit_cell, sigma_method='min'):
+    def __init__(self, pg_number, atoms, unit_cell, sigma_method='mean'):
         self.pg_number = pg_number
         self.atoms = atoms
         self.unit_cell = unit_cell
         self.sigma_ = _estimate_sigma(self.atoms, method=sigma_method)
 
-    def get_image(self, size=512, sigma_map=None, amplitude_map=None):
+    def get_image(self, size=512, sigma_map=None, amplitude_map=None, seed=None):
+        rng = np.random.default_rng(seed)
         if sigma_map is None:
-            sigma_min = 1.2
-            if self.sigma_ > sigma_min:
-                sigma_max = self.sigma_ * (size)
-            else:
-                sigma_max = 2
-            sigma_map = np.random.uniform(sigma_min, sigma_max)
+            sigma_min = self.sigma_ * (size) * 0.16
+            sigma_max = self.sigma_ * (size) * 0.357
+            sigma_map = rng.uniform(sigma_min, sigma_max)
 
         # estimate patch size from atoms
         # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)

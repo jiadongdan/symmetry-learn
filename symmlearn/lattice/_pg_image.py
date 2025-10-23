@@ -55,8 +55,10 @@ def _estimate_sigma(atoms, method='mean'):
         stat = np.median(dists)
     elif method == 'mean':
         stat = dists.mean()
+    elif method == 'max':
+        stat = dists.max()
     else:
-        raise ValueError(f"Invalid method '{method}'; choose from 'min', 'mean', 'median'")
+        raise ValueError(f"Invalid method '{method}'; choose from 'min', 'max', 'mean', 'median'")
 
     return stat/5.   # we divide it by 5 when using mean method
 

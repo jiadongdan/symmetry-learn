@@ -13,7 +13,7 @@ from mtflearn.features import ZPs
 from ..sampling._poisson_disk_sampling import poisson_disk_sampling
 from ..maps import get_rot_maps, get_ref_map
 from ._estimate_patch_size import estimate_patch_size_from_img
-
+from ._tapered_gaussian import add_tapered_gaussian
 
 def _estimate_sigma(atoms, method='mean'):
     """
@@ -63,7 +63,7 @@ def _estimate_sigma(atoms, method='mean'):
     return stat
 
 
-def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
+def atoms2image_deprecated(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
     """
     Convert an ASE Atoms into a 2D image by dropping impulses at each atom's
     fractional (x,y) positions, blurring per element, summing, and normalizing.
@@ -132,6 +132,41 @@ def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
 
     return img
 
+def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
+    # 1) Check cell is square & orthogonal in XY
+    cell = atoms.get_cell()
+    a_vec, b_vec = cell[0], cell[1]
+    a_len, b_len = np.linalg.norm(a_vec), np.linalg.norm(b_vec)
+    if abs(np.dot(a_vec, b_vec)) > tol:
+        raise ValueError("Cell a·b ≠ 0 → not orthogonal")
+    if abs(a_len - b_len) > tol:
+        raise ValueError("Cell sides differ → not square")
+
+    # 2) Symbols & default amplitudes
+    symbols    = atoms.get_chemical_symbols()
+    unique_syms = sorted(set(symbols))
+    if amplitude_map is None:
+        amplitude_map = {s: 1.0 for s in unique_syms}
+
+    # 3) Build sigma_map dict
+    if sigma_map is None:
+        # estimate one sigma and apply to all
+        sigma_val = _estimate_sigma(atoms, method='mean') * (size)
+        sigma_map = {s: sigma_val for s in unique_syms}
+    elif isinstance(sigma_map, numbers.Number):
+        # single float → broadcast to all
+        sigma_map = {s: float(sigma_map) for s in unique_syms}
+    else:
+        # assume dict; you might validate keys here if desired
+        sigma_map = {s: sigma_map[s] for s in unique_syms}
+
+    img = np.zeros((size, size), float)
+    for s in unique_syms:
+        pos = atoms.get_scaled_positions()[np.array(atoms.get_chemical_symbols()) == s][:, 0:2] * size
+        add_tapered_gaussian(img, pts=pos, sigma=sigma_map[s], amplitude=amplitude_map[s])
+
+    return img
+
 def estimate_patch_size(atoms, unit_cell, image_size):
     """
     Estimate how many pixels (patch size) correspond to one unit cell,
@@ -184,6 +219,21 @@ class PGLattice:
         self.unit_cell = unit_cell
         self.sigma_ = _estimate_sigma(self.atoms, method=sigma_method)
 
+    def get_image_deprecated(self, size=512, sigma_map=None, amplitude_map=None, seed=None):
+        rng = np.random.default_rng(seed)
+        if sigma_map is None:
+            sigma_min = self.sigma_ * (size) * 0.16
+            sigma_max = self.sigma_ * (size) * 0.357
+            sigma_map = rng.uniform(sigma_min, sigma_max)
+
+        # estimate patch size from atoms
+        # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
+        img = atoms2image_deprecated(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
+        # estimate patch size from img
+        s = estimate_patch_size_from_img(img) * 4
+        patch_size = s//2 * 2 + 1
+        return PGImage(self.pg_number, img, patch_size)
+
     def get_image(self, size=512, sigma_map=None, amplitude_map=None, seed=None):
         rng = np.random.default_rng(seed)
         if sigma_map is None:
@@ -194,6 +244,7 @@ class PGLattice:
         # estimate patch size from atoms
         # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
         img = atoms2image(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
+
         # estimate patch size from img
         s = estimate_patch_size_from_img(img) * 4
         patch_size = s//2 * 2 + 1

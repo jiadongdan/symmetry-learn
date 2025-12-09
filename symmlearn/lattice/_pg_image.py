@@ -294,7 +294,12 @@ class PGImage:
         pass
 
 
-    def compute_symm_maps(self, n_max=12, patch_size=None, normalize_rot=False, normalize_ref=False, return_angle=False):
+    def compute_symm_maps(self,
+                          n_max=12,
+                          patch_size=None,
+                          normalize_rot=False,
+                          normalize_ref=False,
+                          return_angle=True):
         if patch_size is None:
             patch_size = self.patch_size
         # get the rotational and reflectional maps
@@ -317,8 +322,12 @@ class PGImage:
         self.ref_map = ref_map[s:-s, s:-s]
         if theta_map is not None:
             self.theta_map = theta_map[s:-s, s:-s]
+            self.sin_map = np.sin(self.theta_map * 2)
+            self.cos_map = np.cos(self.theta_map * 2)
         else:
             self.theta_map = None
+            self.sin_map = None
+            self.cos_map = None
         self.has_symm_maps = True
 
     def get_patches(self, radius=None, scale=2., seed=None):

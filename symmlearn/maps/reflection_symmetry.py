@@ -42,7 +42,7 @@ class RefMap(nn.Module):
         # Linear layer with fixed weight
         self.register_buffer('linear_weight', linear_weight)  # Store as non-trainable
 
-    def forward(self, x):
+    def forward(self, x, return_angle=False):
         if x.dim() == 2:  # Single image case (H, W)
             x = x.unsqueeze(0).unsqueeze(0)  # Shape becomes (1, 1, H, W)
         elif x.dim() == 3:  # Stack of images (num_imgs, H, W)
@@ -69,6 +69,12 @@ class RefMap(nn.Module):
         # Reshape back to (num_imgs, another_num, H, W)
         x3 = x3.view(x2.shape[0], -1, x2.shape[2], x2.shape[3])
 
-        x3 = torch.max(x3, dim=1)[0]
+        x3_max, max_inds = torch.max(x3, dim=1)
 
-        return x3
+        if return_angle:
+            theta = np.linspace(0, 2 * np.pi, 361)[0:360]
+            theta_map = theta[max_inds.cpu()]
+
+            return x3_max, theta_map / 2.0
+        else:
+            return x3_max

@@ -6,77 +6,8 @@ from ase import Atoms
 from ._wyckoff_position import WyckoffPosition, wyckoff_pos
 from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
 from ._pg_image import PGLattice
+from ._mixin_plane_group import MixinShowPG, generate_plane_group_cell
 
-def generate_plane_group_cell(
-        pg_number: int,
-        a: Optional[float] = None,
-        b: Optional[float] = None,
-        c: Optional[float] = 12,
-        gamma: Optional[float] = None,
-        a_range: Tuple[float, float] = (2.0, 4.0),
-        b_range: Tuple[float, float] = (2.0, 4.0),
-        seed: Optional[int] = None
-) -> Cell:
-    """
-    Return an ASE Cell for a 2D wallpaper (plane) group, sampling lattice
-    parameters within specified ranges if not explicitly provided.
-
-    Args:
-        pg_number: Wallpaper group number (1–17).
-        a: Lattice constant along x; if None, sampled from a_range.
-        b: Lattice constant along y; if None, sampled from b_range for
-           oblique/rectangular groups, else set equal to a.
-        c: Lattice constant along z; if None, default is 12
-        gamma: Angle between a and b in degrees; if None, set or sampled by group:
-            - pg 1 (oblique): random in [60,120]
-            - rectangular & square (pg 2–11): 90
-            - hexagonal (pg 12–17): 120
-        a_range: (min, max) for sampling a when a is None.
-        b_range: (min, max) for sampling b when b is None.
-        seed: RNG seed for reproducible sampling.
-
-    Returns:
-        An ase.cell.Cell object with the in-plane vectors defined and
-        a fixed z-axis of length 12.
-    """
-    # 2D Bravais lattice classes
-    oblique = {1, 2}
-    rectangular = set(range(3, 10))
-    square = {10, 11, 12}
-    hexagonal = set(range(13, 18))
-
-    rng = np.random.default_rng(seed)
-    # Sample a if needed
-    if a is None:
-        a = float(rng.uniform(a_range[0], a_range[1]))
-
-    # Sample or set b
-    if b is None:
-        if pg_number in oblique or pg_number in rectangular:
-            b = float(rng.uniform(b_range[0], b_range[1]))
-        else:
-            b = a
-
-    # Sample or set gamma
-    if gamma is None:
-        if pg_number in oblique:
-            gamma = float(rng.uniform(60.0, 120.0))
-        elif pg_number in rectangular or pg_number in square:
-            gamma = 90.0
-        elif pg_number in hexagonal:
-            gamma = 120.0
-        else:
-            raise ValueError(f"Plane group must be 1–17; got {pg_number}")
-
-    # Build lattice vectors
-    gamma_rad = np.deg2rad(gamma)
-    lattice = np.array([
-        [a,                      0.0,                   0.0],
-        [b * np.cos(gamma_rad),  b * np.sin(gamma_rad), 0.0],
-        [0.0,                    0.0,                     c],
-    ], dtype=float)
-
-    return Cell(lattice)
 def _min_dist_metric(atoms: Atoms) -> float:
     """Minimum non-zero interatomic distance under PBC in x,y."""
     dmat = atoms.get_all_distances(mic=True)
@@ -184,7 +115,7 @@ def make_cell_square(atoms: Atoms):
 
     return new_atoms_
 
-class PlaneGroup:
+class PlaneGroup(MixinShowPG):
     """
     Represents a 2D wallpaper (plane) group, allowing cell and atom generation.
 
@@ -231,6 +162,8 @@ class PlaneGroup:
             raise TypeError("plane_group must be int (1–17) or str like 'p4m'")
 
         self.wyckoff_letters: List[str] = list(wyckoff_pos[self.pg_number].keys())
+
+    
 
     def generate_unit_cell(
             self,

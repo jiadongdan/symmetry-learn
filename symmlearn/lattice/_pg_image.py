@@ -132,7 +132,7 @@ def atoms2image_deprecated(atoms, size=512, sigma_map=None, amplitude_map=None, 
 
     return img
 
-def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
+def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6, shift_range=0.0):
     # 1) Check cell is square & orthogonal in XY
     cell = atoms.get_cell()
     a_vec, b_vec = cell[0], cell[1]
@@ -163,7 +163,7 @@ def atoms2image(atoms, size=512, sigma_map=None, amplitude_map=None, tol=1e-6):
     img = np.zeros((size, size), float)
     for s in unique_syms:
         pos = atoms.get_scaled_positions()[np.array(atoms.get_chemical_symbols()) == s][:, 0:2] * size
-        add_tapered_gaussian(img, pts=pos, sigma=sigma_map[s], amplitude=amplitude_map[s])
+        add_tapered_gaussian(img, pts=pos, sigma=sigma_map[s], amplitude=amplitude_map[s], shift_range=shift_range)
 
     return img
 
@@ -234,7 +234,7 @@ class PGLattice:
         patch_size = s//2 * 2 + 1
         return PGImage(self.pg_number, img, patch_size)
 
-    def get_image(self, size=512, sigma_map=None, amplitude_map=None, seed=None):
+    def get_image(self, size=512, sigma_map=None, amplitude_map=None, seed=None, shift_range=0.0):
         rng = np.random.default_rng(seed)
         if sigma_map is None:
             sigma_min = self.sigma_ * (size) * 0.16
@@ -243,7 +243,12 @@ class PGLattice:
 
         # estimate patch size from atoms
         # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
-        img = atoms2image(self.atoms, size=size, sigma_map=sigma_map, amplitude_map=amplitude_map)
+        img = atoms2image(self.atoms,
+                          size=size,
+                          sigma_map=sigma_map,
+                          amplitude_map=amplitude_map,
+                          shift_range=shift_range,
+                          )
 
         # estimate patch size from img
         s = estimate_patch_size_from_img(img) * 4
@@ -289,16 +294,31 @@ class PGImage:
         pass
 
 
-    def compute_symm_maps(self, n_max=12, patch_size=None, normalize_rot=True, normalize_ref=False):
+    def compute_symm_maps(self, n_max=12, patch_size=None, normalize_rot=False, normalize_ref=False, return_angle=False):
         if patch_size is None:
             patch_size = self.patch_size
         # get the rotational and reflectional maps
-        rot_maps = get_rot_maps(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_ref)
-        ref_map = get_ref_map(self.img, n_max=n_max, patch_size=patch_size, normalize_output=normalize_rot)
+        rot_maps = get_rot_maps(
+            self.img,
+            n_max=n_max,
+            patch_size=patch_size,
+            normalize_output=normalize_rot
+        )
+        ref_map, theta_map = get_ref_map(
+            self.img,
+            n_max=n_max,
+            patch_size=patch_size,
+            normalize_output=normalize_ref,
+            return_angle=return_angle
+        )
         # crop
         s = self.patch_size // 2
         self.rot_maps = rot_maps[:, s:-s, s:-s]
         self.ref_map = ref_map[s:-s, s:-s]
+        if theta_map is not None:
+            self.theta_map = theta_map[s:-s, s:-s]
+        else:
+            self.theta_map = None
         self.has_symm_maps = True
 
     def get_patches(self, radius=None, scale=2., seed=None):

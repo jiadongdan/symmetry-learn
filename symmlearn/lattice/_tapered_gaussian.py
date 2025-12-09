@@ -1,6 +1,7 @@
 import numpy as np
 
-def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0):
+def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0,
+                         shift_range=0.0, seed=None):
     """
     Add tapered 2D Gaussians to an image at given point locations.
 
@@ -20,6 +21,11 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0):
         If array-like of length N, amplitudes per point.
     r_factor : float, optional
         Cutoff radius factor, default 3.0 → Gaussian tapered to zero at r = 3*sigma.
+    shift_range : float, optional
+        Maximum random shift in pixels (uniform in [-shift_range, shift_range]).
+        Default 0.0 (no shift).
+    seed : int, optional
+        Random seed for reproducible shifts. If None, uses current random state.
 
     Returns
     -------
@@ -30,9 +36,15 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0):
         raise ValueError("img must be a 2D array")
 
     h, w = img.shape
-    pts = np.asarray(pts, dtype=float)
+    pts = np.asarray(pts, dtype=float).copy()  # Copy to avoid modifying input
     if pts.ndim != 2 or pts.shape[1] != 2:
         raise ValueError("pts must have shape (N, 2)")
+
+    # Apply random shift if requested
+    if shift_range > 0:
+        rng = np.random.RandomState(seed) if seed is not None else np.random
+        shifts = rng.uniform(-shift_range, shift_range, size=pts.shape)
+        pts += shifts
 
     # Handle amplitude as scalar or per-point array
     amps = np.asarray(amplitude, dtype=float)
@@ -50,7 +62,7 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0):
     for (y0, x0), A in zip(pts, amps):
         # Local integer bounds for patch around this point, BEFORE clipping
         y_min = int(np.floor(y0 - R))
-        y_max = int(np.ceil(y0 + R)) + 1  # +1 so the upper index is exclusive
+        y_max = int(np.ceil(y0 + R)) + 1
         x_min = int(np.floor(x0 - R))
         x_max = int(np.ceil(x0 + R)) + 1
 
@@ -79,7 +91,7 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0):
         if not np.any(mask):
             continue
 
-        # Smoothstep taper: s = 1 - 3 t^2 + 2 t^3, with t = r / R in [0, 1]
+        # Smoothstep taper
         t = np.zeros_like(r, dtype=float)
         t[mask] = r[mask] / R
         s = np.zeros_like(r, dtype=float)
@@ -92,8 +104,7 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0):
         # Tapered Gaussian
         w_local = A * g * s
 
-        # Add into image (only where mask is true)
+        # Add into image
         img[y_min_clipped:y_max_clipped, x_min_clipped:x_max_clipped] += w_local
 
     return img
-

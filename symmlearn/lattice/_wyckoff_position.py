@@ -82,11 +82,10 @@ wyckoff_pos = {
 class WyckoffPosition:
     """
     Handle Wyckoff letter definitions for a given 2D wallpaper group.
-
-    Attributes:
-        pg_number (int): Wallpaper group number (1–17).
-        letter (str): Wyckoff letter within the group.
     """
+
+    # Cache: plane-group → max multiplicity (general position multiplicity)
+    _group_max_multiplicity = {}
 
     def __init__(
             self,
@@ -94,17 +93,7 @@ class WyckoffPosition:
             letter: str,
             wyckoff_dict: dict = wyckoff_pos
     ) -> None:
-        """
-        Initialize a WyckoffPosition.
 
-        Args:
-            pg_number: Integer from 1 to 17 specifying the wallpaper group.
-            letter: Wyckoff letter within that group.
-            wyckoff_dict: Mapping of group numbers to their Wyckoff patterns.
-
-        Raises:
-            ValueError: If `pg_number` or `letter` is not defined in `wyckoff_dict`.
-        """
         if pg_number not in wyckoff_dict:
             raise ValueError(f"Invalid plane group: {pg_number!r}")
         if letter not in wyckoff_dict[pg_number]:
@@ -114,17 +103,69 @@ class WyckoffPosition:
         self.letter: str = letter
 
         raw_patterns: List[str] = wyckoff_dict[pg_number][letter]
+        self._patterns: List[str] = raw_patterns
+
+        # Precompute multiplicity and whether this letter has free variables
+        self._multiplicity: int = len(raw_patterns)
+        # You can drop regex here; simple substring is enough for this dataset
+        self._has_variables: bool = any(('x' in p) or ('y' in p) for p in raw_patterns)
 
         # Pre-compile each pattern "x_expr, y_expr"
         self._compiled: List[Tuple[object, object]] = []
         for pat in raw_patterns:
-            # turn “2x” or “-2x” into “2*x” / “-2*x”
             pat = re.sub(r'(-?\d+)([xy])', r'\1*\2', pat)
-
             xs, ys = pat.split(",")
             code_x = compile(xs.strip(), "<wyckoff>", "eval")
             code_y = compile(ys.strip(), "<wyckoff>", "eval")
             self._compiled.append((code_x, code_y))
+
+    # ---------- helpers ----------
+
+    @property
+    def multiplicity(self) -> int:
+        return self._multiplicity
+
+    def _group_max_mult(self) -> int:
+        """Return cached maximum multiplicity for this plane group."""
+        pg = self.pg_number
+        if pg not in self._group_max_multiplicity:
+            group_dict = wyckoff_pos[pg]
+            self._group_max_multiplicity[pg] = max(len(pats) for pats in group_dict.values())
+        return self._group_max_multiplicity[pg]
+
+    # ---------- classification API ----------
+
+    def is_general(self) -> bool:
+        """
+        True if this Wyckoff position is the general position
+        (has maximum multiplicity in its plane group).
+        """
+        return self.multiplicity == self._group_max_mult()
+
+    def is_special_fixed(self) -> bool:
+        """
+        True if this Wyckoff position is special with no free parameters
+        (no 'x' or 'y' anywhere in its coordinate expressions).
+        """
+        # No free variables → fixed
+        return not self._has_variables
+
+    def is_special_variable(self) -> bool:
+        """
+        True if this Wyckoff position is special with variable coordinates:
+        it has free parameters, but is not the general position.
+        """
+        return self._has_variables and not self.is_general()
+
+    def classify(self) -> str:
+        if self.is_general():
+            return "general"
+        if self.is_special_fixed():
+            return "special_fixed"
+        if self.is_special_variable():
+            return "special_variable"
+        raise RuntimeError("Unreachable classification state.")
+
 
     def generate_positions(
             self,

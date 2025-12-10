@@ -298,8 +298,9 @@ class PGImage:
                           n_max=12,
                           patch_size=None,
                           normalize_rot=False,
-                          normalize_ref=False,
-                          return_angle=True):
+                          return_angle=True,
+                          p=2,
+                          ):
         if patch_size is None:
             patch_size = self.patch_size
         # get the rotational and reflectional maps
@@ -313,8 +314,8 @@ class PGImage:
             self.img,
             n_max=n_max,
             patch_size=patch_size,
-            normalize_output=normalize_ref,
-            return_angle=return_angle
+            return_angle=return_angle,
+            p=p
         )
         # crop
         s = self.patch_size // 2

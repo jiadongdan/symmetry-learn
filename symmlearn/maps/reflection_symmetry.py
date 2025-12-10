@@ -37,12 +37,12 @@ class RefMap(nn.Module):
         self.stride = stride
         self.kernel_size = (kernels.shape[1], kernels.shape[2])  # (H, W)
         self.padding = ((self.kernel_size[0] - 1) // 2, (self.kernel_size[1] - 1) // 2)  # (pad_H, pad_W)
-        self.norm_factor = 4./(self.kernel_size[0] * self.kernel_size[1]) / np.pi  # normalizingh factor
+        self.norm_factor = 4.0 / ((self.kernel_size[0] * self.kernel_size[1]) * np.pi)  # normalizing factor
 
         # Linear layer with fixed weight
         self.register_buffer('linear_weight', linear_weight)  # Store as non-trainable
 
-    def forward(self, x, return_angle=False):
+    def forward(self, x, return_angle=False, p=2):
         if x.dim() == 2:  # Single image case (H, W)
             x = x.unsqueeze(0).unsqueeze(0)  # Shape becomes (1, 1, H, W)
         elif x.dim() == 3:  # Stack of images (num_imgs, H, W)
@@ -52,13 +52,24 @@ class RefMap(nn.Module):
 
         A = self.norm_factor * F.conv2d(x, self.kernels_A, stride=self.stride, padding=self.padding) # Shape becomes (num_imgs, 25, H, W)
         B = self.norm_factor * F.conv2d(x, self.kernels_B, stride=self.stride, padding=self.padding) # Shape becomes (num_imgs, 25, H, W)
+
+        # Normalize A and B BEFORE squaring (if p is specified)
+        if p is not None:
+            # Concatenate A and B to normalize them together
+            AB = torch.cat([A, B], dim=1)  # Shape: (num_imgs, 50, H, W) if 25 kernels
+            AB = F.normalize(AB, p=p, dim=1)  # Normalize across the 50 channels
+
+            # Split back into A and B
+            num_kernels = A.shape[1]
+            A = AB[:, :num_kernels, :, :]
+            B = AB[:, num_kernels:, :, :]
+
         x_part1 = A**2 - B**2
         x_part2 = 2 * A * B
         # Concatenate x_part1 and x_part2 along the second axis
         x2 = torch.cat([x_part1, x_part2], dim=1)
 
-        # Normalize x2 along the second axis, why I set p=1?
-        x2 = F.normalize(x2, p=1, dim=1)
+        # self.moments_data = x2
 
         # Reshape x2 to (num_imgs, num_kernels, H*W)
         x2_flat = x2.view(x2.shape[0], x2.shape[1], -1)

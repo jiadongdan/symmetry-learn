@@ -128,8 +128,8 @@ def get_ref_map(
         patch_size: int,
         n_max: int = 10,
         device: Optional[torch.device] = None,
-        normalize_output: bool = False,
         return_angle=False,
+        p=1,
 ) -> np.ndarray:
     """
     Compute a reference map for a single 2D image and (optionally) normalize the
@@ -176,22 +176,11 @@ def get_ref_map(
     with torch.no_grad():
         # Output shape is assumed to be (1, 1, H, W)
         if return_angle:
-            output, theta_map = refmap_model(img_t, return_angle=return_angle)
+            output, theta_map = refmap_model(img_t, return_angle=return_angle, p=p)
             theta_map = np.squeeze(theta_map)
         else:
             output = refmap_model(img_t, return_angle=return_angle)
             theta_map = None
-
-        if normalize_output:
-            # Flatten over all values to compute a single global min and max
-            flat = output.view(-1)
-            global_min = flat.min()
-            global_max = flat.max()
-            eps = 1e-8
-
-            # Apply min–max scaling to [-1, 1]:
-            #   scaled = 2 * (x - global_min) / (global_max - global_min + eps) - 1
-            output = 2 * (output - global_min) / (global_max - global_min + eps) - 1
 
         # Remove batch and channel dimensions → (H, W)
         ref_map = output.squeeze(0).squeeze(0).cpu().numpy()

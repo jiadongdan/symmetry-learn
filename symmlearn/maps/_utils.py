@@ -129,7 +129,7 @@ def get_ref_map(
         n_max: int = 10,
         device: Optional[torch.device] = None,
         return_angle=False,
-        p=1,
+        p=2,
 ) -> np.ndarray:
     """
     Compute a reference map for a single 2D image and (optionally) normalize the

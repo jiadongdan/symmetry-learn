@@ -13,7 +13,6 @@ def generate_plane_group_cell(
         c: Optional[float] = 12,
         gamma: Optional[float] = None,
         a_range: Tuple[float, float] = (2.0, 4.0),
-        b_range: Tuple[float, float] = (2.0, 4.0),
         seed: Optional[int] = None
 ) -> Cell:
     """
@@ -52,7 +51,7 @@ def generate_plane_group_cell(
     # Sample or set b
     if b is None:
         if pg_number in oblique or pg_number in rectangular:
-            b = float(rng.uniform(b_range[0], b_range[1]))
+            b = float(rng.uniform(0.5 * a, 0.9 * a))
         else:
             b = a
 

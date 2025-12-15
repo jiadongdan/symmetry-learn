@@ -78,9 +78,11 @@ def is_new_atoms_better(
         return score2 > score1
 
 def random_supercell(unit_cell, size):
-    a = unit_cell.cellpar()
-    s = size // a * 3
-    return [s, s, 1]
+    a = unit_cell.cellpar()[0]
+    b = unit_cell.cellpar()[1]
+    l = min(a, b)
+    s = int(size // l * 3)
+    return (s, s, 1)
 
 def make_cell_rectangular(atoms: Atoms):
     new_atoms = atoms.copy()
@@ -289,5 +291,5 @@ class PlaneGroup(MixinShowPG):
 
         return PGLattice(pg_number=self.pg_number,
                          atoms=atoms,
-                         unit_cell=atoms_unit_cell,
+                         unit_cell_atoms=atoms_unit_cell,
                          sigma_method=sigma_method)

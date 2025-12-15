@@ -81,7 +81,7 @@ def random_supercell(unit_cell, size):
     a = unit_cell.cellpar()[0]
     b = unit_cell.cellpar()[1]
     l = min(a, b)
-    s = int(size // l * 3)
+    s = int(np.ceil(size / l) * 3)
     return (s, s, 1)
 
 def make_cell_rectangular(atoms: Atoms):
@@ -281,6 +281,7 @@ class PlaneGroup(MixinShowPG):
                                                                 metric_method=metric_method,
                                                                 seed=rng)
         supercell = random_supercell(atoms_unit_cell.get_cell(), size)
+        print(supercell)
         if angle_deg is None:
             angle_deg = rng.uniform(0, 360)
 

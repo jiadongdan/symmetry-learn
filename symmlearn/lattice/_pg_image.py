@@ -142,6 +142,8 @@ class PGLattice:
             sigma_min = self.sigma_ * (image_size) * 0.16
             sigma_max = self.sigma_ * (image_size) * 0.357
             sigma_map = rng.uniform(sigma_min, sigma_max)
+            sigma_map = max(1.0, sigma_map)
+
 
         img = atoms2image(self.atoms,
                           size=image_size,

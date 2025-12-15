@@ -134,9 +134,7 @@ class PGLattice:
         self.sigma_ = _estimate_sigma(self.atoms, method=sigma_method)
         self.size = int(self.atoms.get_cell().cellpar()[0])
 
-    def get_image(self, image_size=None, sigma_map=None, amplitude_map=None, seed=None, shift_range=0.0):
-        if image_size is None:
-            image_size = self.size
+    def get_image(self, image_size, sigma_map=None, amplitude_map=None, seed=None, shift_range=0.0):
         rng = np.random.default_rng(seed)
         if sigma_map is None:
             sigma_min = self.sigma_ * (image_size) * 0.16

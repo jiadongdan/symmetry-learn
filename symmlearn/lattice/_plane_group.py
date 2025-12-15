@@ -77,9 +77,12 @@ def is_new_atoms_better(
     else:
         return score2 > score1
 
-def random_supercell(size_min, size_max, rng):
-    size = rng.integers(size_min, size_max, endpoint=True)
-    return [size, size, 1]
+def random_supercell(unit_cell, size):
+    a = unit_cell.cellpar()[0]
+    b = unit_cell.cellpar()[1]
+    l = min(a, b)
+    s = int(size // l * 3)
+    return (s, s, 1)
 
 def make_cell_rectangular(atoms: Atoms):
     new_atoms = atoms.copy()
@@ -169,6 +172,7 @@ class PlaneGroup(MixinShowPG):
             self,
             structure_dict,
             cell: Optional[Cell] = None,
+            a_range = (19, 30),
             thickness: float = 24.,
             seed: Optional[int] = None
     ) -> Atoms:
@@ -186,7 +190,7 @@ class PlaneGroup(MixinShowPG):
         """
         rng = np.random.default_rng(seed)
         if cell is None:
-            cell = generate_plane_group_cell(self.pg_number, c=thickness, seed=seed)
+            cell = generate_plane_group_cell(self.pg_number, a_range=a_range, c=thickness, seed=seed)
 
         atom_symbols: List[str] = []
         scaled_pos_list: List[np.ndarray] = []
@@ -211,6 +215,8 @@ class PlaneGroup(MixinShowPG):
     def generate_unit_cell_with_sampling(
             self,
             structure_dict,
+            cell = None,
+            a_range = (19, 30),
             thickness: float = 12.,
             max_samples: int = 10,
             metric_method: str = 'avg_nn',
@@ -236,7 +242,8 @@ class PlaneGroup(MixinShowPG):
         # first sample
         best_atoms = self.generate_unit_cell(
             structure_dict,
-            cell=None,
+            cell=cell,
+            a_range=a_range,
             thickness=thickness,
             seed=int(sample_seeds[0])
         )
@@ -255,10 +262,11 @@ class PlaneGroup(MixinShowPG):
 
     def generate_lattice(self,
                          structure_dict,
+                         cell = None,
+                         a_range = (19, 30),
+                         size = 512,
                          thickness: float = 12.,
                          max_samples: int = 10,
-                         size_min: int = 25,
-                         size_max: int = 35,
                          angle_deg = None,
                          sigma_method: str = 'mean',
                          metric_method: str = 'avg_nn',
@@ -266,20 +274,22 @@ class PlaneGroup(MixinShowPG):
         ) -> Atoms:
         rng = np.random.default_rng(seed)
         atoms_unit_cell = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
+                                                                cell=cell,
+                                                                a_range=a_range,
                                                                 thickness=thickness,
                                                                 max_samples=max_samples,
                                                                 metric_method=metric_method,
                                                                 seed=rng)
-        supercell = random_supercell(size_min, size_max, rng)
+        supercell = random_supercell(atoms_unit_cell.get_cell(), size)
         if angle_deg is None:
             angle_deg = rng.uniform(0, 360)
 
         atoms = atoms_unit_cell * supercell
         atoms = make_cell_square(atoms)
         atoms = rotate_atoms_xy_center(atoms, angle_deg)
-        atoms = crop_atoms_xy_center(atoms)
+        atoms = crop_atoms_xy_center(atoms, a_new=size, b_new=size)
 
         return PGLattice(pg_number=self.pg_number,
                          atoms=atoms,
-                         unit_cell=atoms_unit_cell,
+                         unit_cell_atoms=atoms_unit_cell,
                          sigma_method=sigma_method)

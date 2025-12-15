@@ -112,9 +112,9 @@ def estimate_patch_size(unit_cell, scale=2.0):
         Estimated patch size (scaled diameter of bounding circle) in the
         same units as the unit cell parameters.
     """
-    cell = unit_cell.get_cell()
-    a_vec = cell[0, :2]
-    b_vec = cell[1, :2]
+    #cell = unit_cell.get_cell()
+    a_vec = unit_cell[0, 0:2]
+    b_vec = unit_cell[1, 0:2]
 
     # The two diagonals of the parallelogram
     diag1 = np.linalg.norm(a_vec + b_vec)
@@ -126,32 +126,34 @@ def estimate_patch_size(unit_cell, scale=2.0):
 
 class PGLattice:
 
-    def __init__(self, pg_number, atoms, unit_cell, sigma_method='mean'):
+    def __init__(self, pg_number, atoms, unit_cell_atoms, sigma_method='mean'):
         self.pg_number = pg_number
         self.atoms = atoms
-        self.unit_cell = unit_cell
+        self.unit_cell_atoms = unit_cell_atoms
+        self.unit_cell = unit_cell_atoms.get_cell()
         self.sigma_ = _estimate_sigma(self.atoms, method=sigma_method)
+        self.size = int(self.atoms.get_cell().cellpar()[0])
 
-    def get_image(self, size=512, sigma_map=None, amplitude_map=None, seed=None, shift_range=0.0):
+    def get_image(self, image_size=None, sigma_map=None, amplitude_map=None, seed=None, shift_range=0.0):
+        if image_size is None:
+            image_size = self.size
         rng = np.random.default_rng(seed)
         if sigma_map is None:
-            sigma_min = self.sigma_ * (size) * 0.16
-            sigma_max = self.sigma_ * (size) * 0.357
+            sigma_min = self.sigma_ * (image_size) * 0.16
+            sigma_max = self.sigma_ * (image_size) * 0.357
             sigma_map = rng.uniform(sigma_min, sigma_max)
 
-        # estimate patch size from atoms
-        # patch_size = estimate_patch_size(self.atoms, self.unit_cell, size)
         img = atoms2image(self.atoms,
-                          size=size,
+                          size=image_size,
                           sigma_map=sigma_map,
                           amplitude_map=amplitude_map,
                           shift_range=shift_range,
                           )
 
-        # estimate patch size from unit cell
+        # estimate patch size from unit cell, s is float number
         s = estimate_patch_size(self.unit_cell)
         # make the patch size odd number
-        patch_size = s//2 * 2 + 1
+        patch_size = int(s//2 * 2 + 1)
         return PGImage(self.pg_number, img, patch_size)
 
 
@@ -161,10 +163,11 @@ class PGImage:
         self.pg_number = pg_number
         self.img = img
         self.patch_size = patch_size
-        s = self.patch_size // 2
+        s = int(self.patch_size // 2)
         self.img_crop = self.img[s:-s, s:-s]
         self.rot_maps = None
         self.ref_map = None
+        self.theta_map = None
         self.sin_map = None
         self.cos_map = None
         self.has_symm_maps = False
@@ -178,7 +181,7 @@ class PGImage:
                           normalize_rot=False,
                           return_angle=True,
                           p=2,
-                          crop = False,
+                          crop=False,
                           ):
         if patch_size is None:
             patch_size = self.patch_size
@@ -202,6 +205,10 @@ class PGImage:
             self.rot_maps = rot_maps[:, s:-s, s:-s]
             self.ref_map = ref_map[s:-s, s:-s]
             self.theta_map = theta_map[s:-s, s:-s]
+        else:
+            self.rot_maps = rot_maps
+            self.ref_map = ref_map
+            self.theta_map = theta_map
 
         self.sin_map = np.sin(self.theta_map * 2)
         self.cos_map = np.cos(self.theta_map * 2)

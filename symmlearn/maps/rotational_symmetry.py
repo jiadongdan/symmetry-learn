@@ -60,10 +60,14 @@ def construct_rot_maps_matrix(n_folds, m):
     return matrix
 
 
-def compute_kernels_and_linear_weights(n_max, size, n_folds=[2, 3, 4, 6]):
+def compute_kernels_and_linear_weights(n_max, size, n_folds=(2, 3, 4, 6), m_unselect=(0, 1)):
     zps = ZPs(n_max=n_max, size=size)
-    kernels = zps.polynomials
-    linear_weights = construct_rot_maps_matrix(n_folds, zps.m)
+    # we unselect m = 0 and m = 1
+    m_select = np.array([m for m in np.unique(np.abs(zps.m)) if m not in m_unselect])
+    inds = np.where(np.in1d(np.abs(zps.m), m_select))[0]
+
+    kernels = zps.polynomials[inds]
+    linear_weights = construct_rot_maps_matrix(n_folds, zps.m[inds])
     return kernels, linear_weights
 
 class RotMaps(nn.Module):
@@ -79,7 +83,7 @@ class RotMaps(nn.Module):
         # Linear layer with fixed weight
         self.register_buffer('linear_weight', linear_weight)  # Store as non-trainable
 
-    def forward(self, x):
+    def forward(self, x, p=2):
         if x.dim() == 2:  # Single image case (H, W)
             x = x.unsqueeze(0).unsqueeze(0)  # Shape becomes (1, 1, H, W)
         elif x.dim() == 3:  # Stack of images (num_imgs, H, W)
@@ -88,6 +92,10 @@ class RotMaps(nn.Module):
             raise ValueError("Input must be of shape (H, W) or (num_imgs, H, W)")
 
         x1 = self.norm_factor * F.conv2d(x, self.kernels, stride=self.stride, padding=self.padding)
+
+        if p is not None:
+            x1 = F.normalize(x1, p=p, dim=1)  # Normalize
+
         x2 = x1 ** 2    # Shape becomes (num_imgs, num_kernels, H, W)
 
         # Reshape x2 to (num_imgs, num_kernels, H*W)

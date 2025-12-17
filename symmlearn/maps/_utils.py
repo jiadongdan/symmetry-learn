@@ -10,26 +10,6 @@ from .reflection_symmetry import RefMap
 def normalize_array(data, vmin=-1., vmax=1.):
     return (data - data.min())(vmax - vmin)/(data.max() - data.min())
 
-def get_rot_maps_(img, patch_size, n_max=10, n_folds=[2, 3, 4, 6], device=None, normalize=False):
-    kernels, weights = compute_kernels_and_linear_weights(n_max=n_max, size=patch_size, n_folds=n_folds)
-
-    # Check for GPU availability
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # numpy array to tensor
-    torch_kernels = torch.from_numpy(kernels).float().to(device)
-    torch_weights = torch.from_numpy(weights).float().to(device)
-
-    torch_img = torch.from_numpy(img).float().to(device)
-
-    rotmaps = RotMaps(torch_kernels, torch_weights).to(device)
-
-    output = rotmaps(torch_img)
-    if normalize:
-        output = normalize(output)
-    return output[0, :, :, :].cpu().numpy()
-
 def get_rot_maps(
         img: np.ndarray,
         patch_size: int,
@@ -105,23 +85,6 @@ def get_rot_maps(
 
     return result
 
-def get_ref_map_(img, patch_size, n_max=10,device=None):
-    kernels, weights = compute_kernels_weights(n_max=n_max, size=patch_size)
-
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # numpy array to tensor
-    torch_kernels = torch.from_numpy(kernels).float().to(device)
-    torch_weights = torch.from_numpy(weights).float().to(device)
-
-    torch_img = torch.from_numpy(img).float().to(device)
-
-    refmap = RefMap(torch_kernels, torch_weights).to(device)
-
-    output = refmap(torch_img)
-
-    return output[0, :, :].cpu().numpy()
 
 def get_ref_map(
         img: np.ndarray,

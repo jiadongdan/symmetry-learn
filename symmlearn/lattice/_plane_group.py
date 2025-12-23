@@ -281,7 +281,7 @@ class PlaneGroup(MixinShowPG):
                                                                 metric_method=metric_method,
                                                                 seed=rng)
         supercell = random_supercell(atoms_unit_cell.get_cell(), size)
-        print(supercell)
+        # print(supercell)
         if angle_deg is None:
             angle_deg = rng.uniform(0, 360)
 

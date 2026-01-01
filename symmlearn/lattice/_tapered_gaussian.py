@@ -11,7 +11,7 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0,
         Target image. This array is modified in-place and also returned.
     pts : np.ndarray, shape (N, 2)
         Floating-point coordinates of centers.
-        Convention: pts[i] = (y, x) in pixel coordinates (row, col).
+        Convention: pts[i] = (x, y) in pixel coordinates (col, row).
         Centers may be outside the image; as long as their support overlaps
         the image, they will contribute.
     sigma : float
@@ -59,7 +59,7 @@ def add_tapered_gaussian(img, pts, sigma, amplitude=1, r_factor=3.0,
 
     sigma2 = float(sigma) ** 2
 
-    for (y0, x0), A in zip(pts, amps):
+    for (x0, y0), A in zip(pts, amps):
         # Local integer bounds for patch around this point, BEFORE clipping
         y_min = int(np.floor(y0 - R))
         y_max = int(np.ceil(y0 + R)) + 1

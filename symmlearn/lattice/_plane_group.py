@@ -285,12 +285,16 @@ class PlaneGroup(MixinShowPG):
         if angle_deg is None:
             angle_deg = rng.uniform(0, 360)
 
-        atoms = atoms_unit_cell * supercell
+        atoms = atoms_unit_cell * supercell   # cell grows
         atoms = make_cell_square(atoms)
         atoms = rotate_atoms_xy_center(atoms, angle_deg)
         atoms = crop_atoms_xy_center(atoms, a_new=size, b_new=size)
 
+        # Only apply rotation to the unit cell (make_cell_square affects unit cell differently than supercell)
+        atoms_unit_cell_after_transformation = atoms_unit_cell.copy()
+        atoms_unit_cell_after_transformation.rotate('z', angle_deg, rotate_cell=True)
+
         return PGLattice(pg_number=self.pg_number,
                          atoms=atoms,
-                         unit_cell_atoms=atoms_unit_cell,
+                         unit_cell_atoms=atoms_unit_cell_after_transformation,
                          sigma_method=sigma_method)

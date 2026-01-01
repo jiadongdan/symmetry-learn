@@ -154,13 +154,52 @@ class PGLattice:
         s = estimate_patch_size(self.unit_cell)
         # make the patch size odd number
         patch_size = int(s//2 * 2 + 1)
-        return PGImage(self.pg_number, img, patch_size)
+
+        # Crop unit cell image from the supercell image
+        # Get unit cell dimensions in pixels
+        uc_cell = self.unit_cell_atoms.get_cell()
+        uc_len = np.linalg.norm(uc_cell[0, 0:2])  # Unit cell size in physical units
+        supercell_len = self.atoms.get_cell().cellpar()[0]  # Supercell size in physical units
+
+        # Calculate scale factor from physical units to pixels
+        supercell_cell = self.atoms.get_cell()
+        supercell_a = np.linalg.norm(supercell_cell[0, 0:2])
+        scale = image_size / supercell_a  # pixels per physical unit
+
+        # Get unit cell vectors in pixel coordinates
+        uc_cell = self.unit_cell_atoms.get_cell()
+        uc_a_vec = uc_cell[0, 0:2] * scale  # unit cell a vector in pixels
+        uc_b_vec = uc_cell[1, 0:2] * scale  # unit cell b vector in pixels
+
+        img_copy = img.copy()
+        n = img.shape[0]//4  # border thickness
+
+        # Fill n-pixel thick border with zeros
+        img_copy[:n, :] = 0      # top n rows
+        img_copy[-n:, :] = 0     # bottom n rows
+        img_copy[:, :n] = 0      # left n columns
+        img_copy[:, -n:] = 0     # right n columns
+
+        row, col = np.unravel_index(np.argmax(img_copy), img_copy.shape)
+        uc_origin_px = np.array([col, row])
+        #uc_origin_px = np.array([0, 0])
+
+        # Calculate four corners of the unit cell parallelogram
+        corner_0 = uc_origin_px  # Origin
+        corner_1 = uc_origin_px + uc_a_vec  # Along a
+        corner_2 = uc_origin_px + uc_b_vec  # Along b
+        corner_3 = uc_origin_px + uc_a_vec + uc_b_vec  # Opposite corner
+
+        unit_cell_corners = np.array([corner_0, corner_1, corner_2, corner_3])
+
+        return PGImage(self.pg_number, img, patch_size, unit_cell_corners)
 
 
 class PGImage:
 
-    def __init__(self, pg_number, img, patch_size):
+    def __init__(self, pg_number, img, patch_size, unit_cell_corners):
         self.pg_number = pg_number
+        self.unit_cell_corners = unit_cell_corners
         self.img = img
         self.patch_size = patch_size
         s = int(self.patch_size // 2)

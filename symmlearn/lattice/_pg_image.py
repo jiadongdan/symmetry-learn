@@ -7,6 +7,8 @@ from itertools import combinations
 
 from ..maps import get_rot_maps, get_ref_map
 from ._tapered_gaussian import add_tapered_gaussian
+from ._mixin_plane_group import transform_via_cell
+from ._mixin_plane_group import PG_PATTERNS
 
 def _estimate_sigma(atoms, method='mean'):
     """
@@ -123,6 +125,78 @@ def estimate_patch_size(unit_cell, scale=2.0):
     # Diameter is the longer diagonal scaled by the scaling factor
     return scale * max(diag1, diag2)
 
+def coords_to_ase_cell(coords, z_height=12.0, pbc=None):
+
+    coords = np.array(coords)
+
+    if pbc is None:
+        pbc = [True, True, False]
+
+    # Take two adjacent sides as cell vectors
+    a = coords[1] - coords[0]  # First lattice vector
+    b = coords[2] - coords[0]  # Second lattice vector
+
+    # Create 3x3 cell matrix (add z-dimension)
+    cell = np.array([
+        [a[0], a[1], 0.0],
+        [b[0], b[1], 0.0],
+        [0.0, 0.0, z_height]
+    ])
+
+    return cell
+
+def get_line(p1, p2):
+    """
+    Get integer positions of line points connecting p1 and p2.
+    Uses Bresenham's line algorithm for efficient integer line drawing.
+
+    Parameters
+    ----------
+    p1 : array-like, shape (2,)
+        Starting point (x, y) in float
+    p2 : array-like, shape (2,)
+        Ending point (x, y) in float
+
+    Returns
+    -------
+    numpy.ndarray, shape (N, 2)
+        Array of integer (x, y) coordinates along the line
+    """
+    # Convert to integers
+    x1, y1 = int(round(p1[0])), int(round(p1[1]))
+    x2, y2 = int(round(p2[0])), int(round(p2[1]))
+
+    points = []
+
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+
+    # Determine direction of line
+    sx = 1 if x1 < x2 else -1
+    sy = 1 if y1 < y2 else -1
+
+    err = dx - dy
+
+    x, y = x1, y1
+
+    while True:
+        points.append([x, y])
+
+        # Reached endpoint
+        if x == x2 and y == y2:
+            break
+
+        e2 = 2 * err
+
+        if e2 > -dy:
+            err -= dy
+            x += sx
+
+        if e2 < dx:
+            err += dx
+            y += sy
+
+    return np.array(points)
 
 class PGLattice:
 
@@ -200,6 +274,7 @@ class PGImage:
     def __init__(self, pg_number, img, patch_size, unit_cell_corners):
         self.pg_number = pg_number
         self.unit_cell_corners = unit_cell_corners
+        self.unit_cell = coords_to_ase_cell(unit_cell_corners)
         self.img = img
         self.patch_size = patch_size
         s = int(self.patch_size // 2)
@@ -212,6 +287,52 @@ class PGImage:
         self.has_symm_maps = False
 
         self.ps = None
+
+    def get_rot_centers(self, n_fold=3):
+        try:
+            pattern = PG_PATTERNS[self.pg_number]
+        except KeyError:
+            raise NotImplementedError(f"No pattern defined for pg {self.pg_number}")
+        # transform all coordinate sets through the cell
+        P2 = transform_via_cell(pattern.P2, self.unit_cell)
+        P3 = transform_via_cell(pattern.P3, self.unit_cell)
+        P4 = transform_via_cell(pattern.P4, self.unit_cell)
+        P6 = transform_via_cell(pattern.P6, self.unit_cell)
+
+        if P2 is not None:
+            P2 = P2 + self.unit_cell_corners[0]
+        if P3 is not None:
+            P3 = P3 + self.unit_cell_corners[0]
+        if P4 is not None:
+            P4 = P4 + self.unit_cell_corners[0]
+        if P6 is not None:
+            P6 = P6 + self.unit_cell_corners[0]
+
+        if n_fold is None:
+            return (P2, P3, P4, P6)
+        elif n_fold == 2:
+            return P2
+        elif n_fold == 3:
+            return P3
+        elif n_fold == 4:
+            return P4
+        elif n_fold == 6:
+            return P6
+        else:
+            raise ValueError(f"n_fold must be 2, 3, 4, 6 and None")
+
+    def get_mirror_lines(self):
+        try:
+            pattern = PG_PATTERNS[self.pg_number]
+        except KeyError:
+            raise NotImplementedError(f"No pattern defined for pg {self.pg_number}")
+
+        mirror_pairs  = transform_via_cell(pattern.mirror_pairs, self.unit_cell)
+        lines = []
+        for (p1, p2) in mirror_pairs:
+            line = get_line(p1, p2) + self.unit_cell_corners[0]
+            lines.append(line)
+        return np.vstack(lines)
 
 
     def compute_symm_maps(self,

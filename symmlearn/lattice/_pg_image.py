@@ -4,6 +4,7 @@ import numpy as np
 from ase import Atoms
 from scipy.spatial import Delaunay
 from itertools import combinations
+from scipy.spatial.distance import cdist
 
 from ..maps import get_rot_maps, get_ref_map
 from ._tapered_gaussian import add_tapered_gaussian
@@ -198,6 +199,166 @@ def get_line(p1, p2):
 
     return np.array(points)
 
+def find_translation_vector(
+        large_atoms: Atoms,
+        small_atoms: Atoms,
+        tolerance: float = 1e-3,
+        z_fix: bool = True
+) -> np.ndarray:
+    """
+    Find the 2D translation vector from small_atoms to its matching position in large_atoms.
+
+    Searches for the small atomic structure within the larger one by trying to match
+    atomic positions using nearest neighbor matching in the xy-plane. The returned
+    translation vector is adjusted to point near the center of the large_atoms cell.
+
+    Args:
+        large_atoms: The larger ASE Atoms object containing the small structure.
+        small_atoms: The smaller ASE Atoms object to locate within large_atoms.
+        tolerance: Maximum distance (Å) for considering positions matched. Default: 1e-3.
+        z_fix: If True, sets z-component of translation to 0. Default: True.
+
+    Returns:
+        Translation vector [tx, ty] to align small_atoms with large_atoms, adjusted
+        to point near the center of the large cell using periodic boundary conditions.
+
+    Raises:
+        ValueError: If no matching substructure found within tolerance, or if
+                   small_atoms contains more atoms than large_atoms.
+    """
+    large_pos = large_atoms.get_positions()
+    small_pos = small_atoms.get_positions()
+
+    if len(small_pos) > len(large_pos):
+        raise ValueError(
+            "Small atoms object cannot contain more atoms than large atoms object."
+        )
+
+    atomic_numbers_large = large_atoms.get_atomic_numbers()
+    atomic_numbers_small = small_atoms.get_atomic_numbers()
+
+    # Extract lattice vectors for periodic boundary adjustment
+    small_a_vec = small_atoms.cell[0, :2]
+    small_b_vec = small_atoms.cell[1, :2]
+
+    # Center of the large cell (in 2D)
+    large_center = np.sum(large_atoms.cell[:2, :2], axis=0) / 2
+
+    # Try each atom in large structure as potential alignment anchor
+    for i_anchor in range(len(large_pos)):
+        # Skip if atomic species doesn't match first atom in small structure
+        if atomic_numbers_large[i_anchor] != atomic_numbers_small[0]:
+            continue
+
+        # Calculate translation needed to align first small atom with current anchor
+        translation_xy = large_pos[i_anchor, :2] - small_pos[0, :2]
+        translation_z = 0.0 if z_fix else (large_pos[i_anchor, 2] - small_pos[0, 2])
+
+        # Apply translation to small structure
+        translated_pos = small_pos.copy()
+        translated_pos[:, :2] += translation_xy
+        if not z_fix:
+            translated_pos[:, 2] += translation_z
+
+        # Check if translation produces valid match
+        if _is_valid_match(
+                translated_pos,
+                large_pos,
+                atomic_numbers_small,
+                atomic_numbers_large,
+                tolerance
+        ):
+            # Adjust translation to point near the center using PBC
+            adjusted_translation = _center_translation_vector(
+                translation_xy,
+                large_center,
+                small_a_vec,
+                small_b_vec
+            )
+
+            return adjusted_translation
+
+    raise ValueError(
+        f"Could not find matching substructure within tolerance {tolerance} Å."
+    )
+
+
+def _center_translation_vector(
+        translation: np.ndarray,
+        target_center: np.ndarray,
+        a_vec: np.ndarray,
+        b_vec: np.ndarray
+) -> np.ndarray:
+    """
+    Adjust translation vector to point near a target center using periodic images.
+
+    This function finds the optimal integer linear combination of lattice vectors
+    to add to the translation so that it points as close as possible to the target.
+
+    Args:
+        translation: Initial translation vector [tx, ty].
+        target_center: Target position to point towards [cx, cy].
+        a_vec: First lattice vector (2D).
+        b_vec: Second lattice vector (2D).
+
+    Returns:
+        Adjusted translation vector closest to target_center.
+    """
+    # We want to minimize |translation + n*a_vec + m*b_vec - target_center|
+    # This is equivalent to finding (n, m) that brings translation closest to target_center
+
+    # Calculate the displacement we want to add
+    displacement = target_center - translation
+
+    # Solve for (n, m) using least squares: [a_vec, b_vec] * [n, m]^T = displacement
+    # Stack lattice vectors as columns
+    lattice_matrix = np.column_stack([a_vec, b_vec])
+
+    # Solve for coefficients (allowing fractional values)
+    coeffs, _, _, _ = np.linalg.lstsq(lattice_matrix, displacement, rcond=None)
+
+    # Round to nearest integers
+    n, m = np.round(coeffs).astype(int)
+
+    # Apply the shift
+    adjusted_translation = translation + n * a_vec + m * b_vec
+
+    return adjusted_translation
+
+
+def _is_valid_match(
+        translated_pos: np.ndarray,
+        large_pos: np.ndarray,
+        atomic_numbers_small: np.ndarray,
+        atomic_numbers_large: np.ndarray,
+        tolerance: float
+) -> bool:
+    """
+    Check if translated small structure matches a subregion of large structure.
+
+    Args:
+        translated_pos: Positions of small structure after translation.
+        large_pos: Positions of all atoms in large structure.
+        atomic_numbers_small: Atomic numbers of small structure.
+        atomic_numbers_large: Atomic numbers of large structure.
+        tolerance: Maximum distance for position matching.
+
+    Returns:
+        True if all atoms match within tolerance with correct species.
+    """
+    # Find nearest neighbor in large structure for each translated atom
+    dist_matrix = cdist(translated_pos, large_pos, metric='euclidean')
+    min_distances = np.min(dist_matrix, axis=1)
+    closest_indices = np.argmin(dist_matrix, axis=1)
+
+    # Check distance threshold
+    if not np.all(min_distances < tolerance):
+        return False
+
+    # Check atomic species match
+    matched_atomic_numbers = atomic_numbers_large[closest_indices]
+    return np.array_equal(atomic_numbers_small, matched_atomic_numbers)
+
 class PGLattice:
 
     def __init__(self, pg_number, atoms, unit_cell_atoms, sigma_method='mean'):
@@ -245,18 +406,20 @@ class PGLattice:
         uc_a_vec = uc_cell[0, 0:2] * scale  # unit cell a vector in pixels
         uc_b_vec = uc_cell[1, 0:2] * scale  # unit cell b vector in pixels
 
-        img_copy = img.copy()
-        n = img.shape[0]//4  # border thickness
+        #img_copy = img.copy()
+        #n = img.shape[0]//4  # border thickness
 
         # Fill n-pixel thick border with zeros
-        img_copy[:n, :] = 0      # top n rows
-        img_copy[-n:, :] = 0     # bottom n rows
-        img_copy[:, :n] = 0      # left n columns
-        img_copy[:, -n:] = 0     # right n columns
+        #img_copy[:n, :] = 0      # top n rows
+        #img_copy[-n:, :] = 0     # bottom n rows
+        #img_copy[:, :n] = 0      # left n columns
+        #img_copy[:, -n:] = 0     # right n columns
 
-        row, col = np.unravel_index(np.argmax(img_copy), img_copy.shape)
-        uc_origin_px = np.array([col, row])
-        #uc_origin_px = np.array([0, 0])
+        #row, col = np.unravel_index(np.argmax(img_copy), img_copy.shape)
+        # uc_origin_px = np.array([col, row])
+        # uc_origin_px = np.array([0, 0])
+
+        uc_origin_px = find_translation_vector(self.atoms, self.unit_cell_atoms)
 
         # Calculate four corners of the unit cell parallelogram
         corner_0 = uc_origin_px  # Origin

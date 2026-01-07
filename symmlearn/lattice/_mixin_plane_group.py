@@ -582,7 +582,7 @@ def _get_intensity(pts_array, data):
         raise ValueError('pts_array must have a dimension of 2.')
 
 
-def is_mrror(arr,t1 = 0.8, t2 = 0.7):
+def is_mirror(arr,t1 = 0.8, t2 = 0.7, verbose=False):
     arr = np.array(arr)
     if len(arr) % 2 != 0:
         raise ValueError("length must be even.")
@@ -603,7 +603,7 @@ def is_mrror(arr,t1 = 0.8, t2 = 0.7):
     else:
         return None
 
-def is_rot2(arr,t1 = 0.9, t2 = 0.7):
+def is_rot2(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -614,7 +614,7 @@ def is_rot2(arr,t1 = 0.9, t2 = 0.7):
     else:
         return True
 
-def is_rot3(arr,t1 = 0.9, t2 = 0.7):
+def is_rot3(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -625,7 +625,7 @@ def is_rot3(arr,t1 = 0.9, t2 = 0.7):
     else:
         return True
 
-def is_rot4(arr,t1 = 0.9, t2 = 0.7):
+def is_rot4(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -636,7 +636,7 @@ def is_rot4(arr,t1 = 0.9, t2 = 0.7):
     else:
         return True
 
-def is_rot6(arr,t1 = 0.9, t2 = 0.7):
+def is_rot6(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -650,19 +650,19 @@ def is_rot6(arr,t1 = 0.9, t2 = 0.7):
 
 def _is_typical_pg15(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    p1 = X[0:20]
-    p2 = X[20:28]
-    p3 = X[28:28+16]
+    p1 = X[0:16]
+    p2 = X[16:16+8]
+    p3 = X[24:24+20]
     s = X[44:].shape[0]//2
     lines1_feat = X[-2*s:]
     lines2_feat = X[-s:]
-    if not is_rot3(p1):
+    if not is_rot3(p1, verbose=verbose):
         return False
-    elif not is_rot_3(p2):
+    elif not is_rot3(p2, verbose=verbose):
         return False
-    elif is_mirror(lines1_feat):
+    elif is_mirror(lines1_feat, verbose=verbose):
         return False
-    elif not is_mirror(lines2_feat):
+    elif not is_mirror(lines2_feat, verbose=verbose):
         return False
     else:
         return True

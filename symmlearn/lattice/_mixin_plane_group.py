@@ -205,6 +205,10 @@ class PlaneGroupPattern:
         ((1.0, 1.0), (0.0, 1.0)),
     )
 
+    corner_pts: Optional[Sequence[Point]] = None
+    hexagonal_edge_pts: Optional[Sequence[Point]] = None
+    hexagonal_inside_pts: Optional[Sequence[Point]] = None
+
 
 PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
     1: PlaneGroupPattern(),
@@ -420,37 +424,9 @@ PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
         ],
     ),
     'hexagonal': PlaneGroupPattern(
-        P2=[(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5), (0.5, 0.5)],
-        P3=[(1/3, 2/3), (2/3, 1/3)],
-        P6=[(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-        mirror_pairs=[
-            ((0.0, 0.0), (0.0, 1.0)),
-            ((0.0, 0.0), (1.0, 0.0)),
-            ((0.0, 0.0), (1.0, 1.0)),
-            ((1.0, 0.0), (1.0, 1.0)),
-            ((0.0, 1.0), (1.0, 1.0)),
-            ((0.0, 1.0), (1.0, 0.0)),
-            ((0.0, 0.0), (1.0, 0.5)),
-            ((0.0, 0.0), (0.5, 1.0)),
-            ((0.0, 0.5), (1.0, 1.0)),
-            ((0.5, 0.0), (1.0, 1.0)),
-        ],
-        glide_pairs=[
-            ((0.5, 0.0), (0.0, 0.5)),
-            ((0.0, 0.5), (0.25, 1.0)),
-            ((0.5, 0.0), (1, 0.25)),
-            ((1.0, 0.5), (0.5, 1.0)),
-            ((0.5, 1.0), (0.0, 0.75)),
-            ((1.0, 0.5), (0.75, 0.0)),
-
-            ((0.25, 0.0), (0.75, 1.0)),
-            ((0.0, 0.25), (1.0, 0.75)),
-
-            ((0.0,0.5), (1.0,0.5)),
-            ((0.5,0.0), (0.5,1.0)),
-            ((0.0, 0.5), (0.5, 1.0)),
-            ((0.5, 0.0), (1.0, 0.5)),
-        ],
+        hexagonal_edge_pts=[(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5), (0.5, 0.5)],
+        hexagonal_inside_pts=[(1/3, 2/3), (2/3, 1/3)],
+        corner_pts=[(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
         mirror_pairs1=[
             ((1.0, 0.0), (0.0, 1.0)),
             ((0.0, 0.0), (1.0, 0.5)),
@@ -514,6 +490,11 @@ class MixinPGFeatures:
             return _get_features_pg_hexagonal(self)
 
 
+    def is_typical(self):
+        if self.pg_number == 15:
+            return _is_typical_pg15(self)
+
+
 def _get_features_pg_hexagonal(pgimage):
     cell = pgimage.unit_cell
     if not pgimage.has_symm_maps:
@@ -524,26 +505,28 @@ def _get_features_pg_hexagonal(pgimage):
         raise NotImplementedError(f"No pattern defined for pg {self.pg_number}")
 
     # transform all coordinate sets through the cell
-    P2 = transform_via_cell(pattern.P2, cell) + pgimage.unit_cell_corners[0]
-    P3 = transform_via_cell(pattern.P3, cell) + pgimage.unit_cell_corners[0]
-    P6 = transform_via_cell(pattern.P6, cell) + pgimage.unit_cell_corners[0]
+    pts1 = transform_via_cell(pattern.corner_pts, cell) + pgimage.unit_cell_corners[0]
+    pts2 = transform_via_cell(pattern.hexagonal_inside_pts, cell) + pgimage.unit_cell_corners[0]
+    pts3 = transform_via_cell(pattern.hexagonal_edge_pts, cell) + pgimage.unit_cell_corners[0]
 
     mirror_pairs1  = transform_via_cell(pattern.mirror_pairs1, cell) + pgimage.unit_cell_corners[0]
     mirror_pairs2  = transform_via_cell(pattern.mirror_pairs2, cell) + pgimage.unit_cell_corners[0]
 
 
-    P2_I2 = _get_intensity(P2, pgimage.rot_maps[0])
-    P2_I3 = _get_intensity(P2, pgimage.rot_maps[1])
-    P2_I6 = _get_intensity(P2, pgimage.rot_maps[3])
+    P1_I2 = _get_intensity(pts1, pgimage.rot_maps[0])
+    P1_I3 = _get_intensity(pts1, pgimage.rot_maps[1])
+    P1_I4 = _get_intensity(pts1, pgimage.rot_maps[2])
+    P1_I6 = _get_intensity(pts1, pgimage.rot_maps[3])
 
-    P3_I2 = _get_intensity(P3, pgimage.rot_maps[0])
-    P3_I3 = _get_intensity(P3, pgimage.rot_maps[1])
-    P3_I6 = _get_intensity(P3, pgimage.rot_maps[3])
+    P2_I2 = _get_intensity(pts2, pgimage.rot_maps[0])
+    P2_I3 = _get_intensity(pts2, pgimage.rot_maps[1])
+    P2_I4 = _get_intensity(pts2, pgimage.rot_maps[2])
+    P2_I6 = _get_intensity(pts2, pgimage.rot_maps[3])
 
-    P6_I2 = _get_intensity(P6, pgimage.rot_maps[0])
-    P6_I3 = _get_intensity(P6, pgimage.rot_maps[1])
-    P6_I6 = _get_intensity(P6, pgimage.rot_maps[3])
-
+    P3_I2 = _get_intensity(pts3, pgimage.rot_maps[0])
+    P3_I3 = _get_intensity(pts3, pgimage.rot_maps[1])
+    P3_I4 = _get_intensity(pts3, pgimage.rot_maps[2])
+    P3_I6 = _get_intensity(pts3, pgimage.rot_maps[3])
 
     lines1_mean = []
     lines1_std = []
@@ -564,11 +547,9 @@ def _get_features_pg_hexagonal(pgimage):
         lines2_std.append(np.std(intensity))
     lines2_feat = np.hstack([lines2_mean,lines2_std])
 
-
-
-    return np.hstack([P2_I2, P2_I3, P2_I6,
-                      P3_I2, P3_I3, P3_I6,
-                      P6_I2, P6_I3, P6_I6,
+    return np.hstack([P1_I2, P1_I3, P1_I4, P1_I6,
+                      P2_I2, P2_I3, P2_I4, P2_I6,
+                      P3_I2, P3_I3, P3_I4, P3_I6,
                       lines1_feat, lines2_feat])
 
 def _get_intensity(pts_array, data):
@@ -577,77 +558,8 @@ def _get_intensity(pts_array, data):
         return np.array([data[y, x] for (x, y) in pts_xy])
     else:
         raise ValueError('pts_array must have a dimension of 2.')
-def create_feature(pgi):
-
-    unit_cell_corners = pgi.unit_cell_corners
-    unit_cell = pgi.unit_cell
-    rot_maps = pgi.rot_maps
-    ref_map = pgi.ref_map
-
-    pts1 = [(0,0), (1,0), (0,1), (1,1)]
-    pts2 = [(1/3, 2/3), (2/3, 1/3)]
-    pts3 = [(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5), (0.5, 0.5)]
-
-    lines1 = [
-        ((1.0, 0.0), (0.0, 1.0)),
-        ((0.0, 0.0), (1.0, 0.5)),
-        ((0.0, 0.0), (0.5, 1.0)),
-        ((0.0, 0.5), (1.0, 1.0)),
-        ((0.5, 0.0), (1.0, 1.0)),
-    ]### PG14 mirror line
-
-    lines2 = [
-        ((0.0, 0.0), (0.0, 1.0)),
-        ((0.0, 0.0), (1.0, 0.0)),
-        ((0.0, 0.0), (1.0, 1.0)),
-        ((1.0, 0.0), (1.0, 1.0)),
-        ((0.0, 1.0), (1.0, 1.0)),
-    ]### PG15 mirror line
 
 
-    pts1 = transform_via_cell(pts1, unit_cell)
-    pts2 = transform_via_cell(pts2, unit_cell)
-    pts3 = transform_via_cell(pts3, unit_cell)
-
-    pts1 = pts1 + unit_cell_corners[0]
-    pts2 = pts2 + unit_cell_corners[0]
-    pts3 = pts3 + unit_cell_corners[0]
-
-    p1n2 = get_intensity(rot_maps[0],pts1)
-    p1n3 = get_intensity(rot_maps[1],pts1)
-    p1n6 = get_intensity(rot_maps[3],pts1)
-    p1 = np.hstack([p1n2,p1n3,p1n6])
-
-
-    p2n2 = get_intensity(rot_maps[0],pts2)
-    p2n3 = get_intensity(rot_maps[1],pts2)
-    p2n6 = get_intensity(rot_maps[3],pts2)
-    p2 = np.hstack([p2n2,p2n3,p2n6])
-
-    p3n2 = get_intensity(rot_maps[0],pts3)
-    p3n3 = get_intensity(rot_maps[1],pts3)
-    p3n6 = get_intensity(rot_maps[3],pts3)
-    p3 = np.hstack([p3n2,p3n3,p3n6])
-
-    lines1 = transform_via_cell(lines1,unit_cell)
-    lines2 = transform_via_cell(lines2,unit_cell)
-
-    lines1_mean = []
-    lines1_std = []
-
-    for (pt1, pt2) in lines1:
-        line = get_line(pt1, pt2) + unit_cell_corners[0]
-        intensity = get_intensity(ref_map,line)
-        lines1_mean.append(np.mean(intensity))
-        lines1_std.append(np.std(intensity))
-    lines1_feat = np.hstack([lines1_mean,lines1_std])
-
-    lines2_mean = []
-    lines2_std = []
-    for (pt1, pt2) in lines2:
-        line = get_line(pt1, pt2) + unit_cell_corners[0]
-        intensity = get_intensity(ref_map,line)
-        lines2_mean.append(np.mean(intensity))
-        lines2_std.append(np.std(intensity))
-    lines2_feat = np.hstack([lines2_mean,lines2_std])
-    return p1,p2,p3,lines1_feat,lines2_feat
+def _is_typical_pg15(pgimage):
+    X = _get_features_pg_hexagonal(pgimage)
+    pass

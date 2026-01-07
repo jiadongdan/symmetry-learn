@@ -208,7 +208,8 @@ class PlaneGroupPattern:
     corner_pts: Optional[Sequence[Point]] = None
     hexagonal_edge_pts: Optional[Sequence[Point]] = None
     hexagonal_inside_pts: Optional[Sequence[Point]] = None
-
+    square_edge_pts: Optional[Sequence[Point]] = None
+    corner_center_pts: Optional[Sequence[Point]] = None
 
 PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
     1: PlaneGroupPattern(),
@@ -440,6 +441,27 @@ PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
             ((0.0, 0.0), (1.0, 1.0)),
             ((1.0, 0.0), (1.0, 1.0)),
             ((0.0, 1.0), (1.0, 1.0)),
+        ],
+    ),
+    'square': PlaneGroupPattern(
+        square_edge_pts=[(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5)],
+        corner_center_pts=[(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.5, 0.5)],
+        mirror_pairs1=[
+            ((0.0, 0.0), (0.0, 1.0)),
+            ((0.0, 0.0), (1.0, 0.0)),
+            ((0.0, 1.0), (1.0, 1.0)),
+            ((1.0, 1.0), (1.0, 0.0)),
+            ((1.0, 0.0), (0.0, 1.0)),
+            ((0.0, 0.0), (1.0, 1.0)), # diagonal
+            ((0.0, 1.0), (1.0, 0.0)), # diagonal
+            ((0.0, 0.5), (1.0, 0.5)),
+            ((0.5, 0.0), (0.5, 1.0)),
+        ],
+        mirror_pairs2=[
+            ((0.0, 0.5), (0.5, 1.0)),
+            ((0.5, 1.0), (1.0, 0.5)),
+            ((1.0, 0.5), (0.5, 0.0)),
+            ((0.5, 0.0), (0.0, 0.5)),
         ],
     ),
 }

@@ -512,9 +512,9 @@ class MixinPGFeatures:
             return _get_features_pg_hexagonal(self)
 
 
-    def is_typical(self):
+    def is_typical(self, verbose=False):
         if self.pg_number == 15:
-            return _is_typical_pg15(self)
+            return _is_typical_pg15(self, verbose=verbose)
 
 
 def _get_features_pg_hexagonal(pgimage):
@@ -582,6 +582,87 @@ def _get_intensity(pts_array, data):
         raise ValueError('pts_array must have a dimension of 2.')
 
 
-def _is_typical_pg15(pgimage):
+def is_mirror(arr,t1 = 0.8, t2 = 0.7, verbose=False):
+    arr = np.array(arr)
+    if len(arr) % 2 != 0:
+        raise ValueError("length must be even.")
+
+    half_len = len(arr) // 2
+    means = arr[:half_len]
+    stds = arr[half_len:]
+
+    differences = means - stds
+
+    floor = np.all(differences > t1)
+    ceiling = np.all(differences < t2)
+
+    if floor:
+        return 1
+    elif ceiling:
+        return 0
+    else:
+        return None
+
+def is_rot2(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+    arr = np.array(arr)
+    if len(arr) % 4 != 0:
+        raise ValueError("length must 4n.")
+    n = len(arr) // 4
+    rot2,rot3,rot4,rot6 = arr.reshape(4, n)
+    if np.any(rot2<t1) or np.any(rot3>t2) or np.any(rot4>t2) or np.any(rot6>t2):
+        return False
+    else:
+        return True
+
+def is_rot3(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+    arr = np.array(arr)
+    if len(arr) % 4 != 0:
+        raise ValueError("length must 4n.")
+    n = len(arr) // 4
+    rot2,rot3,rot4,rot6 = arr.reshape(4, n)
+    if np.any(rot3<t1) or np.any(rot2>t2) or np.any(rot4>t2) or np.any(rot6>t2):
+        return False
+    else:
+        return True
+
+def is_rot4(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+    arr = np.array(arr)
+    if len(arr) % 4 != 0:
+        raise ValueError("length must 4n.")
+    n = len(arr) // 4
+    rot2,rot3,rot4,rot6 = arr.reshape(4, n)
+    if np.any(rot4<t1) or np.any(rot3>t2) or np.any(rot6>t2):
+        return False
+    else:
+        return True
+
+def is_rot6(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+    arr = np.array(arr)
+    if len(arr) % 4 != 0:
+        raise ValueError("length must 4n.")
+    n = len(arr) // 4
+    rot2,rot3,rot4,rot6 = arr.reshape(4, n)
+    if np.any(rot6<t1) or np.any(rot4>t2):
+        return False
+    else:
+        return True
+
+
+def _is_typical_pg15(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    pass
+    p1 = X[0:16]
+    p2 = X[16:16+8]
+    p3 = X[24:24+20]
+    s = X[44:].shape[0]//2
+    lines1_feat = X[-2*s:]
+    lines2_feat = X[-s:]
+    if not is_rot3(p1, verbose=verbose):
+        return False
+    elif not is_rot3(p2, verbose=verbose):
+        return False
+    elif is_mirror(lines1_feat, verbose=verbose):
+        return False
+    elif not is_mirror(lines2_feat, verbose=verbose):
+        return False
+    else:
+        return True

@@ -510,11 +510,27 @@ class MixinPGFeatures:
     def get_features(self):
         if self.pg_number in [13, 14, 15, 16, 17]:
             return _get_features_pg_hexagonal(self)
+        elif self.pg_number in [10, 11, 12]:
+            return _get_features_pg_square(self)
 
 
     def is_typical(self, verbose=False):
-        if self.pg_number == 15:
+        if self.pg_number == 10:
+            return _is_typical_pg10(self,verbose=verbose)
+        elif self.pg_number == 11:
+            return _is_typical_pg11(self,verbose=verbose)
+        elif self.pg_number == 12:
+            return _is_typical_pg12(self,verbose=verbose)
+        elif self.pg_number == 13:
+            return _is_typical_pg13(self, verbose=verbose)
+        elif self.pg_number == 14:
+            return _is_typical_pg14(self, verbose=verbose)
+        elif self.pg_number == 15:
             return _is_typical_pg15(self, verbose=verbose)
+        elif self.pg_number == 16:
+            return _is_typical_pg16(self, verbose=verbose)
+        elif self.pg_number == 17:
+            return _is_typical_pg17(self, verbose=verbose)
 
 
 def _get_features_pg_hexagonal(pgimage):
@@ -574,6 +590,57 @@ def _get_features_pg_hexagonal(pgimage):
                       P3_I2, P3_I3, P3_I4, P3_I6,
                       lines1_feat, lines2_feat])
 
+def _get_features_pg_square(pgimage):
+    cell = pgimage.unit_cell
+    if not pgimage.has_symm_maps:
+        pgimage.compute_symm_maps(patch_size=None, n_max=20)
+    try:
+        pattern = PG_PATTERNS['square']
+    except KeyError:
+        raise NotImplementedError(f"No pattern defined for pg {self.pg_number}")
+
+    # transform all coordinate sets through the cell
+    pts1 = transform_via_cell(pattern.square_edge_pts, cell) + pgimage.unit_cell_corners[0]
+    pts2 = transform_via_cell(pattern.corner_center_pts, cell) + pgimage.unit_cell_corners[0]
+
+    mirror_pairs1  = transform_via_cell(pattern.mirror_pairs1, cell) + pgimage.unit_cell_corners[0]
+    mirror_pairs2  = transform_via_cell(pattern.mirror_pairs2, cell) + pgimage.unit_cell_corners[0]
+
+
+    P1_I2 = _get_intensity(pts1, pgimage.rot_maps[0])
+    P1_I3 = _get_intensity(pts1, pgimage.rot_maps[1])
+    P1_I4 = _get_intensity(pts1, pgimage.rot_maps[2])
+    P1_I6 = _get_intensity(pts1, pgimage.rot_maps[3])
+
+    P2_I2 = _get_intensity(pts2, pgimage.rot_maps[0])
+    P2_I3 = _get_intensity(pts2, pgimage.rot_maps[1])
+    P2_I4 = _get_intensity(pts2, pgimage.rot_maps[2])
+    P2_I6 = _get_intensity(pts2, pgimage.rot_maps[3])
+
+    lines1_mean = []
+    lines1_std = []
+
+    for (pt1, pt2) in mirror_pairs1:
+        line = get_line(pt1, pt2)
+        intensity = _get_intensity(line, pgimage.ref_map)
+        lines1_mean.append(np.mean(intensity))
+        lines1_std.append(np.std(intensity))
+    lines1_feat = np.hstack([lines1_mean,lines1_std])
+
+    lines2_mean = []
+    lines2_std = []
+    for (pt1, pt2) in mirror_pairs2:
+        line = get_line(pt1, pt2)
+        intensity = _get_intensity(line, pgimage.ref_map)
+        lines2_mean.append(np.mean(intensity))
+        lines2_std.append(np.std(intensity))
+    lines2_feat = np.hstack([lines2_mean,lines2_std])
+
+    return np.hstack([P1_I2, P1_I3, P1_I4, P1_I6,
+                      P2_I2, P2_I3, P2_I4, P2_I6,
+                      lines1_feat, lines2_feat])
+
+
 def _get_intensity(pts_array, data):
     if pts_array.ndim == 2:
         pts_xy = np.round(pts_array).astype(int)
@@ -582,7 +649,7 @@ def _get_intensity(pts_array, data):
         raise ValueError('pts_array must have a dimension of 2.')
 
 
-def is_mirror(arr,t1 = 0.8, t2 = 0.7, verbose=False):
+def is_mirror(arr,t1 = 0.8, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 2 != 0:
         raise ValueError("length must be even.")
@@ -603,7 +670,7 @@ def is_mirror(arr,t1 = 0.8, t2 = 0.7, verbose=False):
     else:
         return None
 
-def is_rot2(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+def is_rot2(arr,t1 = 0.9, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -614,7 +681,7 @@ def is_rot2(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     else:
         return True
 
-def is_rot3(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+def is_rot3(arr,t1 = 0.9, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -625,7 +692,7 @@ def is_rot3(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     else:
         return True
 
-def is_rot4(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+def is_rot4(arr,t1 = 0.9, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
@@ -636,13 +703,118 @@ def is_rot4(arr,t1 = 0.9, t2 = 0.7, verbose=False):
     else:
         return True
 
-def is_rot6(arr,t1 = 0.9, t2 = 0.7, verbose=False):
+def is_rot6(arr,t1 = 0.9, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
     n = len(arr) // 4
     rot2,rot3,rot4,rot6 = arr.reshape(4, n)
     if np.any(rot6<t1) or np.any(rot4>t2):
+        return False
+    else:
+        return True
+
+def _is_typical_pg10(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16+20]
+    s = X[36:].shape[0]//2
+    lines1_feat = X[-2*s:]
+    lines2_feat = X[-s:]
+    if not is_rot4(p2):
+        if verbose:
+            print('corner center pts not satified 4-fold rotation.')
+        return False
+    elif is_mirror(lines1_feat):
+        if verbose:
+            print('mirror pair 1 (pg11) mirror lines too high.')
+        return False
+    elif is_mirror(lines2_feat):
+        if verbose:
+            print('mirror pair 2 (pg12) mirror lines too high.')
+        return False
+    else:
+        return True
+
+def _is_typical_pg11(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16+20]
+    s = X[36:].shape[0]//2
+    lines1_feat = X[-2*s:]
+    lines2_feat = X[-s:]
+    if not is_rot4(p2):
+        if verbose:
+            print('corner center pts not satified 4-fold rotation.')
+        return False
+    elif not is_mirror(lines1_feat):
+        if verbose:
+            print('mirror pair 1 (pg11) mirror lines too low.')
+        return False
+    elif is_mirror(lines2_feat):
+        if verbose:
+            print('mirror pair 2 (pg12) mirror lines too high.')
+        return False
+    else:
+        return True
+
+def _is_typical_pg12(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16+20]
+    s = X[36:].shape[0]//2
+    lines1_feat = X[-2*s:]
+    lines2_feat = X[-s:]
+    if not is_rot4(p2):
+        if verbose:
+            print('corner center pts not satified 4-fold rotation.')
+        return False
+    elif is_mirror(lines1_feat):
+        if verbose:
+            print('mirror pair 1 (pg11) mirror lines too high.')
+        return False
+    elif not is_mirror(lines2_feat):
+        if verbose:
+            print('mirror pair 2 (pg12) mirror lines too low.')
+        return False
+    else:
+        return True
+
+def _is_typical_pg13(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16+8]
+    p3 = X[24:24+20]
+    s = X[44:].shape[0]//2
+    lines1_feat = X[-2*s:]
+    lines2_feat = X[-s:]
+    if not is_rot3(p1):
+        return False
+    elif not is_rot3(p2):
+        return False
+    elif is_mirror(lines1_feat):
+        return False
+    elif is_mirror(lines2_feat):
+        return False
+    else:
+        return True
+
+
+def _is_typical_pg14(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16+8]
+    p3 = X[24:24+20]
+    s = X[44:].shape[0]//2
+    lines1_feat = X[-2*s:]
+    lines2_feat = X[-s:]
+    if not is_rot3(p1):
+        return False
+    elif not is_rot3(p2):
+        return False
+    elif not is_mirror(lines1_feat):
+        return False
+    elif is_mirror(lines2_feat):
         return False
     else:
         return True
@@ -656,13 +828,55 @@ def _is_typical_pg15(pgimage, verbose=False):
     s = X[44:].shape[0]//2
     lines1_feat = X[-2*s:]
     lines2_feat = X[-s:]
-    if not is_rot3(p1, verbose=verbose):
+    if not is_rot3(p1):
         return False
-    elif not is_rot3(p2, verbose=verbose):
+    elif not is_rot3(p2):
         return False
-    elif is_mirror(lines1_feat, verbose=verbose):
+    elif is_mirror(lines1_feat):
         return False
-    elif not is_mirror(lines2_feat, verbose=verbose):
+    elif not is_mirror(lines2_feat):
+        return False
+    else:
+        return True
+
+def _is_typical_pg16(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16 + 8]
+    p3 = X[24:24 + 20]
+    s = X[44:].shape[0] // 2
+    lines1_feat = X[-2 * s:]
+    lines2_feat = X[-s:]
+    if not is_rot6(p1):
+        return False
+    elif not is_rot3(p2):
+        return False
+    elif not is_rot2(p3):
+        return False
+    elif is_mirror(lines1_feat):
+        return False
+    elif is_mirror(lines2_feat):
+        return False
+    else:
+        return True
+
+def _is_typical_pg17(pgimage, verbose=False):
+    X = _get_features_pg_hexagonal(pgimage)
+    p1 = X[0:16]
+    p2 = X[16:16 + 8]
+    p3 = X[24:24 + 20]
+    s = X[44:].shape[0] // 2
+    lines1_feat = X[-2 * s:]
+    lines2_feat = X[-s:]
+    if not is_rot6(p1):
+        return False
+    elif not is_rot3(p2):
+        return False
+    elif not is_rot2(p3):
+        return False
+    elif not is_mirror(lines1_feat):
+        return False
+    elif not is_mirror(lines2_feat):
         return False
     else:
         return True

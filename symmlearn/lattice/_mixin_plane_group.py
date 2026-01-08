@@ -210,6 +210,11 @@ class PlaneGroupPattern:
     hexagonal_inside_pts: Optional[Sequence[Point]] = None
     square_edge_pts: Optional[Sequence[Point]] = None
     corner_center_pts: Optional[Sequence[Point]] = None
+    corner_edge_center_pts: Optional[Sequence[Point]] = None
+    rect_center_pts: Optional[Sequence[Point]] = None
+    mirror_pairs_h: Optional[Sequence[Point]] = None
+    mirror_pairs_v: Optional[Sequence[Point]] = None
+    mirror_pairs_mid: Optional[Sequence[Point]] = None
 
 PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
     1: PlaneGroupPattern(),
@@ -463,6 +468,31 @@ PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
             ((1.0, 0.5), (0.5, 0.0)),
             ((0.5, 0.0), (0.0, 0.5)),
         ],
+    ),
+    'rect': PlaneGroupPattern(
+        corner_edge_center_pts = [(0.0, 0.0), (0.0, 0.5), (0.0, 1.0),
+                                  (0.5, 0.0), (0.5, 0.5), (0.5, 1.0),
+                                  (1.0, 0.0), (1.0, 0.5), (1.0, 1.0)],
+        rect_center_pts = [(0.25, 0.25), (0.75, 0.25),(0.25, 0.75), (0.75, 0.75)],
+        mirror_pairs_h =[
+            ((0.0, 0.0), (1.0, 0.0)),
+            ((0.0, 0.5), (1.0, 0.5)),
+            ((0.0, 1.0), (1.0, 1.0)),
+        ],
+        mirror_pairs_v =[
+            ((0.0, 0.0), (0.0, 1.0)),
+            ((0.5, 0.0), (0.5, 1.0)),
+            ((1.0, 0.0), (1.0, 1.0)),
+        ],
+        mirror_pairs_mid =[
+            ((0.25, 0.0), (0.25, 1.0)),
+            ((0.75, 0.0), (0.75, 1.0)),
+        ],
+    ),
+    'oblique': PlaneGroupPattern(
+        corner_edge_center_pts = [(0.0, 0.0), (0.0, 0.5), (0.0, 1.0),
+                                  (0.5, 0.0), (0.5, 0.5), (0.5, 1.0),
+                                  (1.0, 0.0), (1.0, 0.5), (1.0, 1.0)],
     ),
 }
 

@@ -715,7 +715,7 @@ def _get_features_pg_oblique(pgimage):
 
     return np.hstack([P1_I2, P1_I3, P1_I4, P1_I6])
 
-def _get_features_pg_ractangle(pgimage):
+def _get_features_pg_rectangle(pgimage):
     cell = pgimage.unit_cell
     if not pgimage.has_symm_maps:
         pgimage.compute_symm_maps(patch_size=None, n_max=20)
@@ -872,10 +872,30 @@ def _is_typical_pg2(pgimage, verbose = False):
     else:
         return True
 
+def _is_typical_pg3_(pgimage, verbose=False):
+    X = _get_features_pg_rectangle(pgimage)
+    p1 = X[0:9*4]
+    p2 = X[36:36+16]
+    h_lines = X[52:52+6]
+    v_lines = X[58:58+6]
+    mid_lines = X[64:]
+
+    status1 = is_mirror(h_lines)
+    status2 = is_mirror(v_lines)
+    status3 = is_mirror(mid_lines)
+
+    mirror_status = (status1, status2, status3)
+
+    if mirror_status in [(0,1,0),]:
+        return True
+    else:
+        return False
+
 def _is_typical_pg3(pgimage, verbose = False):
     X = _get_features_pg_rectangle(pgimage)
     p1 = X[0:9*4]
     p2 = X[36:36+16]
+
     lines1 = X[52:52+6]
     lines2 = X[58:58+6]
     lines3 = X[64:]
@@ -893,6 +913,7 @@ def _is_typical_pg3(pgimage, verbose = False):
         return False
     else:
         return True
+
 
 def _is_typical_pg4(pgimage, verbose = False):
     X = _get_features_pg_rectangle(pgimage)
@@ -1025,6 +1046,26 @@ def _is_typical_pg9(pgimage, verbose = False):
     else:
         return True
 
+def _is_typical_pg9_(pgimage, verbose=False):
+    X = _get_features_pg_rectangle(pgimage)
+    nine_pts_2_fold = X[0:9 * 4]
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    rot2_status = is_rot2(nine_pts_2_fold)
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (rot2_status, h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status is (1,0,0,0):
+        return True
+    else:
+        return False
+
+
 def _is_typical_pg10(pgimage, verbose=False):
     X = _get_features_pg_square(pgimage)
     p1 = X[0:16]
@@ -1033,7 +1074,7 @@ def _is_typical_pg10(pgimage, verbose=False):
     lines2_feat = X[54:]
     if not is_rot4(p2):
         if verbose:
-            print('corner center pts not satified 4-fold rotation.')
+            print('corner center pts not satisfied 4-fold rotation.')
         return False
     elif is_mirror(lines1_feat):
         if verbose:

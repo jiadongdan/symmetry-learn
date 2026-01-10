@@ -1,4 +1,5 @@
 .idea/**
+symmlearn/.idea/**
 motif_learn.egg-info
 notebooks/.idea/**
 

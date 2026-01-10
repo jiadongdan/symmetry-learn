@@ -2,11 +2,30 @@ from typing import List, Tuple, Optional, Union
 import numpy as np
 from ase.cell import Cell
 from ase import Atoms
+import spglib
 
 from ._wyckoff_position import WyckoffPosition, wyckoff_pos
 from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
 from ._pg_image import PGLattice
 from ._mixin_plane_group import MixinShowPG, generate_plane_group_cell
+
+def reduce_unit_cell_atoms(atoms):
+    cell_matrix = atoms.cell[:]
+    positions = atoms.get_scaled_positions()
+    numbers = atoms.get_atomic_numbers()
+    spg_cell = (cell_matrix, positions, numbers)
+    primitive_cell = spglib.find_primitive(spg_cell)
+    if primitive_cell is None:
+        return atoms
+    cell_matrix, positions, numbers = primitive_cell
+    reduced_atoms = Atoms(
+        numbers=numbers,
+        scaled_positions=positions,
+        cell=cell_matrix,
+        pbc=True,
+    )
+    return reduced_atoms
+
 
 def _min_dist_metric(atoms: Atoms) -> float:
     """Minimum non-zero interatomic distance under PBC in x,y."""
@@ -293,6 +312,8 @@ class PlaneGroup(MixinShowPG):
         # Only apply rotation to the unit cell (make_cell_square affects unit cell differently than supercell)
         atoms_unit_cell_after_transformation = atoms_unit_cell.copy()
         atoms_unit_cell_after_transformation.rotate('z', angle_deg, rotate_cell=True)
+
+        atoms_unit_cell_after_transformation = reduce_unit_cell_atoms(atoms_unit_cell_after_transformation)
 
         return PGLattice(pg_number=self.pg_number,
                          atoms=atoms,

@@ -805,262 +805,205 @@ def is_mirror(arr,t1 = 0.8, t2 = 0.7):
     else:
         return None
 
-def is_rot2(arr,t1 = 0.9, t2 = 0.7):
+def is_rot2(arr,t1 = 0.85, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
     n = len(arr) // 4
     rot2,rot3,rot4,rot6 = arr.reshape(4, n)
-    if np.any(rot2<t1) or np.any(rot3>t2) or np.any(rot4>t2) or np.any(rot6>t2):
+    if np.mean(rot2)<t1 or np.mean(rot3)>t2 or np.mean(rot4)>t2 or np.mean(rot6)>t2:
         return False
     else:
         return True
 
-def is_rot3(arr,t1 = 0.9, t2 = 0.7):
+def is_rot3(arr,t1 = 0.85, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
     n = len(arr) // 4
     rot2,rot3,rot4,rot6 = arr.reshape(4, n)
-    if np.any(rot3<t1) or np.any(rot2>t2) or np.any(rot4>t2) or np.any(rot6>t2):
+    if np.mean(rot3)<t1 or np.mean(rot2)>t2 or np.mean(rot4)>t2 or np.mean(rot6)>t2:
         return False
     else:
         return True
 
-def is_rot4(arr,t1 = 0.9, t2 = 0.7):
+def is_rot4(arr,t1 = 0.85, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
     n = len(arr) // 4
     rot2,rot3,rot4,rot6 = arr.reshape(4, n)
-    if np.any(rot4<t1) or np.any(rot3>t2) or np.any(rot6>t2):
+    if np.mean(rot4)<t1 or np.mean(rot3)>t2 or np.mean(rot6)>t2:
         return False
     else:
         return True
 
-def is_rot6(arr,t1 = 0.9, t2 = 0.7):
+def is_rot6(arr,t1 = 0.85, t2 = 0.7):
     arr = np.array(arr)
     if len(arr) % 4 != 0:
         raise ValueError("length must 4n.")
     n = len(arr) // 4
     rot2,rot3,rot4,rot6 = arr.reshape(4, n)
-    if np.any(rot6<t1) or np.any(rot4>t2):
+    if np.mean(rot6)<t1 or np.mean(rot4)>t2:
         return False
     else:
         return True
 
 def _is_typical_pg1(pgimage, verbose = False):
     X = _get_features_pg_oblique(pgimage)
-    p1 = X
-    if is_rot2(p1):
-        if verbose:
-            print('corner center pts not satified 2-fold rotation.')
-        return False
-    elif is_rot3(p1):
-        if verbose:
-            print('corner center pts not satified 3-fold rotation.')
-        return False
-    else:
+    corner_edge_center_pts = X
+
+    conner_edge_center_rot2_status = is_rot2(corner_edge_center_pts)
+    corner_edge_center_rot3_status = is_rot3(corner_edge_center_pts)
+
+    stauts = (conner_edge_center_rot2_status, corner_edge_center_rot3_status)
+
+    if stauts == (0,0):
         return True
+    else:
+        return False
+
 
 def _is_typical_pg2(pgimage, verbose = False):
     X = _get_features_pg_oblique(pgimage)
-    p1 = X
-    if not is_rot2(p1):
-        if verbose:
-            print('corner center pts not satified 2-fold rotation.')
-    else:
-        return True
+    corner_edge_center_pts = X
 
-def _is_typical_pg3_(pgimage, verbose=False):
-    X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9*4]
-    p2 = X[36:36+16]
-    h_lines = X[52:52+6]
-    v_lines = X[58:58+6]
-    mid_lines = X[64:]
+    conner_edge_center_rot2_status = is_rot2(corner_edge_center_pts)
 
-    status1 = is_mirror(h_lines)
-    status2 = is_mirror(v_lines)
-    status3 = is_mirror(mid_lines)
+    stauts = (conner_edge_center_rot2_status)
 
-    mirror_status = (status1, status2, status3)
-
-    if mirror_status in [(0,1,0),]:
+    if stauts == (1):
         return True
     else:
         return False
+
 
 def _is_typical_pg3(pgimage, verbose = False):
     X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9*4]
-    p2 = X[36:36+16]
-
-    lines1 = X[52:52+6]
-    lines2 = X[58:58+6]
-    lines3 = X[64:]
-    if is_mirror(lines1):
-        if verbose:
-            print('mirror pair 1 (horizontal) mirror lines too high.')
-        return False
-    elif not is_mirror(lines2):
-        if verbose:
-            print('mirror pair 2 (vertical) mirror lines too low.')
-        return False
-    elif is_mirror(lines3):
-        if verbose:
-            print('mirror pair 3 (mid) mirror lines too high.')
-        return False
-    else:
-        return True
-
-
-def _is_typical_pg4(pgimage, verbose = False):
-    X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9 * 4]
-    p2 = X[36:36 + 16]
-    lines1 = X[52:52 + 6]
-    lines2 = X[58:58 + 6]
-    lines3 = X[64:]
-    if is_mirror(lines1):
-        if verbose:
-            print('mirror pair 1 (horizontal) mirror lines too high.')
-        return False
-    elif is_mirror(lines2):
-        if verbose:
-            print('mirror pair 2 (vertical) mirror lines too high.')
-        return False
-    elif is_mirror(lines3):
-        if verbose:
-            print('mirror pair 3 (mid) mirror lines too high.')
-    else:
-        return True
-
-def _is_typical_pg5(pgimage, verbose = False):
-    pass
-
-def _is_typical_pg6(pgimage, verbose = False):
-    X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9 * 4]
-    p2 = X[36:36 + 16]
-    lines1 = X[52:52 + 6]
-    lines2 = X[58:58 + 6]
-    lines3 = X[64:]
-    if not is_rot2(p1):
-        if verbose:
-            print('corner center pts not satified 2-fold rotation.')
-        return False
-    elif not is_mirror(lines1):
-        if verbose:
-            print('mirror pair 1 (horizontal) mirror lines too low.')
-        return False
-    elif not is_mirror(lines2):
-        if verbose:
-            print('mirror pair 2 (vertical) mirror lines too low.')
-        return False
-    elif is_mirror(lines3):
-        if verbose:
-            print('mirror pair 3 (mid) mirror lines too high.')
-        return False
-    else:
-        return True
-
-def _is_typical_pg7(pgimage, verbose = False):
-    X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9 * 4]
-    p2 = X[36:36 + 16]
-    lines1 = X[52:52 + 6]
-    lines2 = X[58:58 + 6]
-    lines3 = X[64:]
-    if not is_rot2(p1):
-        if verbose:
-            print('corner center pts not satified 2-fold rotation.')
-        return False
-    elif is_mirror(lines1):
-        if verbose:
-            print('mirror pair 1 (horizontal) mirror lines too high.')
-        return False
-    elif is_mirror(lines2):
-        if verbose:
-            print('mirror pair 2 (vertical) mirror lines too high.')
-        return False
-    elif not is_mirror(lines3):
-        if verbose:
-            print('mirror pair 3 (mid) mirror lines too low.')
-        return False
-    else:
-        return True
-
-def _is_typical_pg8(pgimage, verbose = False):
-    X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9 * 4]
-    p2 = X[36:36 + 16]
-    lines1 = X[52:52 + 6]
-    lines2 = X[58:58 + 6]
-    lines3 = X[64:]
-    if not is_rot2(p1):
-        if verbose:
-            print('corner center pts not satified 2-fold rotation.')
-        return False
-    elif is_mirror(lines1):
-        if verbose:
-            print('mirror pair 1 (horizontal) mirror lines too high.')
-        return False
-    elif is_mirror(lines2):
-        if verbose:
-            print('mirror pair 2 (vertical) mirror lines too high.')
-        return False
-    elif is_mirror(lines3):
-        if verbose:
-            print('mirror pair 3 (mid) mirror lines too high.')
-        return False
-    else:
-        return True
-
-def _is_typical_pg9(pgimage, verbose = False):
-    X = _get_features_pg_rectangle(pgimage)
-    p1 = X[0:9 * 4]
-    p2 = X[36:36 + 16]
-    lines1 = X[52:52 + 6]
-    lines2 = X[58:58 + 6]
-    lines3 = X[64:]
-    if not is_rot2(p1):
-        if verbose:
-            print('corner center pts not satified 2-fold rotation.')
-        return False
-    elif not is_rot2(p2):
-        if verbose:
-            print('rect center pts not satified 2-fold rotation.')
-    elif not is_mirror(lines1):
-        if verbose:
-            print('mirror pair 1 (horizontal) mirror lines too low.')
-        return False
-    elif not is_mirror(lines2):
-        if verbose:
-            print('mirror pair 2 (vertical) mirror lines too low.')
-        return False
-    elif is_mirror(lines3):
-        if verbose:
-            print('mirror pair 3 (mid) mirror lines too high.')
-        return False
-    else:
-        return True
-
-def _is_typical_pg9_(pgimage, verbose=False):
-    X = _get_features_pg_rectangle(pgimage)
-    nine_pts_2_fold = X[0:9 * 4]
     h_lines = X[52:52 + 6]
     v_lines = X[58:58 + 6]
     mid_lines = X[64:]
 
-    rot2_status = is_rot2(nine_pts_2_fold)
     h_mirror_status = is_mirror(h_lines)
     v_mirror_status = is_mirror(v_lines)
     mid_mirror_status = is_mirror(mid_lines)
 
-    status = (rot2_status, h_mirror_status, v_mirror_status, mid_mirror_status)
+    status = (h_mirror_status, v_mirror_status, mid_mirror_status)
 
-    if status is (1,0,0,0):
+    if status == (0, 1, 0):
+        return True
+    else:
+        return False
+
+
+def _is_typical_pg4(pgimage, verbose = False):
+    X = _get_features_pg_rectangle(pgimage)
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status == (0, 0, 0):
+        return True
+    else:
+        return False
+
+def _is_typical_pg5(pgimage, verbose = False):
+    X = _get_features_pg_rectangle(pgimage)
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status == (0, 1, 0):
+        return True
+    else:
+        return False
+
+def _is_typical_pg6(pgimage, verbose = False):
+    X = _get_features_pg_rectangle(pgimage)
+    corner_center_pts_2_fold = X[0:9 * 4]
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    corner_center_rot2_status = is_rot2(corner_center_pts_2_fold)
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (corner_center_rot2_status, h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status == (1, 1, 1, 0):
+        return True
+    else:
+        return False
+
+def _is_typical_pg7(pgimage, verbose = False):
+    X = _get_features_pg_rectangle(pgimage)
+    corner_center_pts_2_fold = X[0:9 * 4]
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    corner_center_rot2_status = is_rot2(corner_center_pts_2_fold)
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (corner_center_rot2_status, h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status == (1, 0, 0, 1):
+        return True
+    else:
+        return False
+
+def _is_typical_pg8(pgimage, verbose = False):
+    X = _get_features_pg_rectangle(pgimage)
+    corner_center_pts_2_fold = X[0:9 * 4]
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    corner_center_rot2_status = is_rot2(corner_center_pts_2_fold)
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (corner_center_rot2_status, h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status == (1, 0, 0, 0):
+        return True
+    else:
+        return False
+
+def _is_typical_pg9(pgimage, verbose=False):
+    X = _get_features_pg_rectangle(pgimage)
+    corner_center_pts_2_fold = X[0:9 * 4]
+    rect_center_pts_2_fold = X[36:36 + 16]
+    h_lines = X[52:52 + 6]
+    v_lines = X[58:58 + 6]
+    mid_lines = X[64:]
+
+    corner_center_rot2_status = is_rot2(corner_center_pts_2_fold)
+    rect_center_rot2_status = is_rot2(rect_center_pts_2_fold)
+    h_mirror_status = is_mirror(h_lines)
+    v_mirror_status = is_mirror(v_lines)
+    mid_mirror_status = is_mirror(mid_lines)
+
+    status = (corner_center_rot2_status, rect_center_rot2_status, h_mirror_status, v_mirror_status, mid_mirror_status)
+
+    if status == (1,1,1,1,0):
         return True
     else:
         return False
@@ -1068,208 +1011,159 @@ def _is_typical_pg9_(pgimage, verbose=False):
 
 def _is_typical_pg10(pgimage, verbose=False):
     X = _get_features_pg_square(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16+20]
-    lines1_feat = X[36:36+9*2]
-    lines2_feat = X[54:]
-    if not is_rot4(p2):
-        if verbose:
-            print('corner center pts not satisfied 4-fold rotation.')
-        return False
-    elif is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg11) mirror lines too high.')
-        return False
-    elif is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg12) mirror lines too high.')
-        return False
-    else:
+    square_edge_pts_2_fold = X[0:16]
+    corner_center_pts_4_fold = X[16:16+20]
+    pg11_mirror_line = X[36:36+9*2]
+    pg12_mirror_line = X[54:]
+
+    square_edge_rot_2_status = is_rot2(square_edge_pts_2_fold)
+    corner_center_rot_4_status = is_rot4(corner_center_pts_4_fold)
+    pg11_mirror_status = is_mirror(pg11_mirror_line)
+    pg12_mirror_status = is_mirror(pg12_mirror_line)
+
+    status = (square_edge_rot_2_status, corner_center_rot_4_status, pg11_mirror_status, pg12_mirror_status)
+
+    if status == (1,1,0,0):
         return True
+    else:
+        return False
 
 def _is_typical_pg11(pgimage, verbose=False):
     X = _get_features_pg_square(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16+20]
-    lines1_feat = X[36:36 + 9 * 2]
-    lines2_feat = X[54:]
-    if not is_rot4(p2):
-        if verbose:
-            print('corner center pts not satified 4-fold rotation.')
-        return False
-    elif not is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg11) mirror lines too low.')
-        return False
-    elif is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg12) mirror lines too high.')
-        return False
-    else:
+    square_edge_pts_2_fold = X[0:16]
+    corner_center_pts_4_fold = X[16:16 + 20]
+    pg11_mirror_line = X[36:36 + 9 * 2]
+    pg12_mirror_line = X[54:]
+
+    square_edge_rot_2_status = is_rot2(square_edge_pts_2_fold)
+    corner_center_rot_4_status = is_rot4(corner_center_pts_4_fold)
+    pg11_mirror_status = is_mirror(pg11_mirror_line)
+    pg12_mirror_status = is_mirror(pg12_mirror_line)
+
+    status = (square_edge_rot_2_status, corner_center_rot_4_status, pg11_mirror_status, pg12_mirror_status)
+
+    if status == (1,1,1,0):
         return True
+    else:
+        return False
 
 def _is_typical_pg12(pgimage, verbose=False):
     X = _get_features_pg_square(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16+20]
-    lines1_feat = X[36:36 + 9 * 2]
-    lines2_feat = X[54:]
-    if not is_rot4(p2):
-        if verbose:
-            print('corner center pts not satified 4-fold rotation.')
-        return False
-    elif is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg11) mirror lines too high.')
-        return False
-    elif not is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg12) mirror lines too low.')
-        return False
-    else:
+    square_edge_pts_2_fold = X[0:16]
+    corner_center_pts_4_fold = X[16:16 + 20]
+    pg11_mirror_line = X[36:36 + 9 * 2]
+    pg12_mirror_line = X[54:]
+
+    square_edge_rot_2_status = is_rot2(square_edge_pts_2_fold)
+    corner_center_rot_4_status = is_rot4(corner_center_pts_4_fold)
+    pg11_mirror_status = is_mirror(pg11_mirror_line)
+    pg12_mirror_status = is_mirror(pg12_mirror_line)
+
+    status = (square_edge_rot_2_status, corner_center_rot_4_status, pg11_mirror_status, pg12_mirror_status)
+
+    if status == (1,1,0,1):
         return True
+    else:
+        return False
 
 def _is_typical_pg13(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16+8]
-    p3 = X[24:24+20]
-    s = X[44:].shape[0]//2
-    lines1_feat = X[-2*s:]
-    lines2_feat = X[-s:]
-    if not is_rot3(p1):
-        if verbose:
-            print('Corner pts not satified 3-fold rotation.')
-        return False
-    elif not is_rot3(p2):
-        if verbose:
-            print('Center pts not satified 3-fold rotation.')
-        return False
-    elif is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg14) mirror lines too high.')
-        return False
-    elif is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg15) mirror lines too high.')
-        return False
-    else:
+    hexa_corner_pts_3_fold = X[0:16]
+    hexa_inside_pts_3_fold = X[16:16+8]
+    pg_14_mirror_line = X[44:54]
+    pg_15_mirror_line = X[54:]
+
+    corner_rot_3_status = is_rot3(hexa_corner_pts_3_fold)
+    inside_rot_3_status = is_rot3(hexa_inside_pts_3_fold)
+    pg_14_mirror_status = is_mirror(pg_14_mirror_line)
+    pg_15_mirror_status = is_mirror(pg_15_mirror_line)
+
+    status = (corner_rot_3_status, inside_rot_3_status, pg_14_mirror_status, pg_15_mirror_status)
+
+    if status == (1,1,0,0):
         return True
+    else:
+        return False
+
 
 
 def _is_typical_pg14(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16+8]
-    p3 = X[24:24+20]
-    s = X[44:].shape[0]//2
-    lines1_feat = X[-2*s:]
-    lines2_feat = X[-s:]
-    if not is_rot3(p1):
-        if verbose:
-            print('Corner pts not satified 3-fold rotation.')
-        return False
-    elif not is_rot3(p2):
-        if verbose:
-            print('Center pts not satified 3-fold rotation.')
-        return False
-    elif not is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg14) mirror lines too low.')
-        return False
-    elif is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg15) mirror lines too high.')
-        return False
-    else:
+    hexa_corner_pts_3_fold = X[0:16]
+    hexa_inside_pts_3_fold = X[16:16 + 8]
+    pg_14_mirror_line = X[44:54]
+    pg_15_mirror_line = X[54:]
+
+    corner_rot_3_status = is_rot3(hexa_corner_pts_3_fold)
+    inside_rot_3_status = is_rot3(hexa_inside_pts_3_fold)
+    pg_14_mirror_status = is_mirror(pg_14_mirror_line)
+    pg_15_mirror_status = is_mirror(pg_15_mirror_line)
+
+    status = (corner_rot_3_status, inside_rot_3_status, pg_14_mirror_status, pg_15_mirror_status)
+
+    if status == (1, 1, 1, 0):
         return True
+    else:
+        return False
 
 
 def _is_typical_pg15(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16+8]
-    p3 = X[24:24+20]
-    s = X[44:].shape[0]//2
-    lines1_feat = X[-2*s:]
-    lines2_feat = X[-s:]
-    if not is_rot3(p1):
-        if verbose:
-            print('Corner pts not satified 3-fold rotation.')
-        return False
-    elif not is_rot3(p2):
-        if verbose:
-            print('Center pts not satified 3-fold rotation.')
-        return False
-    elif is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg14) mirror lines too high.')
-        return False
-    elif not is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg15) mirror lines too low.')
-        return False
-    else:
+    hexa_corner_pts_3_fold = X[0:16]
+    hexa_inside_pts_3_fold = X[16:16 + 8]
+    pg_14_mirror_line = X[44:54]
+    pg_15_mirror_line = X[54:]
+
+    corner_rot_3_status = is_rot3(hexa_corner_pts_3_fold)
+    inside_rot_3_status = is_rot3(hexa_inside_pts_3_fold)
+    pg_14_mirror_status = is_mirror(pg_14_mirror_line)
+    pg_15_mirror_status = is_mirror(pg_15_mirror_line)
+
+    status = (corner_rot_3_status, inside_rot_3_status, pg_14_mirror_status, pg_15_mirror_status)
+
+    if status == (1, 1, 0, 1):
         return True
+    else:
+        return False
 
 def _is_typical_pg16(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16 + 8]
-    p3 = X[24:24 + 20]
-    s = X[44:].shape[0] // 2
-    lines1_feat = X[-2 * s:]
-    lines2_feat = X[-s:]
-    if not is_rot6(p1):
-        if verbose:
-            print('Corner pts not satified 6-fold rotation.')
-        return False
-    elif not is_rot3(p2):
-        if verbose:
-            print('Center pts not satified 3-fold rotation.')
-        return False
-    elif not is_rot2(p3):
-        if verbose:
-            print('Edge pts not satified 2-fold rotation.')
-        return False
-    elif is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg14) mirror lines too high.')
-        return False
-    elif is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg15) mirror lines too high.')
-        return False
-    else:
+    hexa_corner_pts_6_fold = X[0:16]
+    hexa_inside_pts_3_fold = X[16:16 + 8]
+    hexa_edge_pts_2_fold = X[24:24+20]
+    pg_14_mirror_line = X[44:54]
+    pg_15_mirror_line = X[54:]
+
+    corner_rot_6_status = is_rot6(hexa_corner_pts_6_fold)
+    inside_rot_3_status = is_rot3(hexa_inside_pts_3_fold)
+    edge_pts_2_status = is_rot2(hexa_edge_pts_2_fold)
+    pg_14_mirror_status = is_mirror(pg_14_mirror_line)
+    pg_15_mirror_status = is_mirror(pg_15_mirror_line)
+
+    status = (corner_rot_6_status, inside_rot_3_status, edge_pts_2_status, pg_14_mirror_status, pg_15_mirror_status)
+
+    if status == (1, 1, 1, 0, 0):
         return True
+    else:
+        return False
 
 def _is_typical_pg17(pgimage, verbose=False):
     X = _get_features_pg_hexagonal(pgimage)
-    p1 = X[0:16]
-    p2 = X[16:16 + 8]
-    p3 = X[24:24 + 20]
-    s = X[44:].shape[0] // 2
-    lines1_feat = X[-2 * s:]
-    lines2_feat = X[-s:]
-    if not is_rot6(p1):
-        if verbose:
-            print('Corner pts not satified 6-fold rotation.')
-        return False
-    elif not is_rot3(p2):
-        if verbose:
-            print('Center pts not satified 3-fold rotation.')
-        return False
-    elif not is_rot2(p3):
-        if verbose:
-            print('Edge pts not satified 2-fold rotation.')
-        return False
-    elif not is_mirror(lines1_feat):
-        if verbose:
-            print('mirror pair 1 (pg14) mirror lines too low.')
-        return False
-    elif not is_mirror(lines2_feat):
-        if verbose:
-            print('mirror pair 2 (pg15) mirror lines too low.')
-        return False
-    else:
+    hexa_corner_pts_6_fold = X[0:16]
+    hexa_inside_pts_3_fold = X[16:16 + 8]
+    hexa_edge_pts_2_fold = X[24:24 + 20]
+    pg_14_mirror_line = X[44:54]
+    pg_15_mirror_line = X[54:]
+
+    corner_rot_6_status = is_rot6(hexa_corner_pts_6_fold)
+    inside_rot_3_status = is_rot3(hexa_inside_pts_3_fold)
+    edge_pts_2_status = is_rot2(hexa_edge_pts_2_fold)
+    pg_14_mirror_status = is_mirror(pg_14_mirror_line)
+    pg_15_mirror_status = is_mirror(pg_15_mirror_line)
+
+    status = (corner_rot_6_status, inside_rot_3_status, edge_pts_2_status, pg_14_mirror_status, pg_15_mirror_status)
+
+    if status == (1, 1, 1, 1, 1):
         return True
+    else:
+        return False

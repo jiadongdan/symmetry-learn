@@ -118,3 +118,4 @@ def crop_atoms_xy_center(atoms, a_new=None, b_new=None):
 
     return cropped
 
+

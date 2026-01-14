@@ -11,6 +11,7 @@ from ._utils import plane2layer, layer2plane
 from ._crystal_systems import random_structure_A
 from ._structure_dict import mix_combination
 from ._structure_dict import get_structure_letters
+from ._wyckoff_structure import WyckoffStructure
 
 __all__ = ['PlaneGroup',
            'WyckoffPosition',
@@ -25,4 +26,5 @@ __all__ = ['PlaneGroup',
            'find_translation_vector',
            'mix_combination',
            'get_structure_letters',
+           'WyckoffStructure',
            ]

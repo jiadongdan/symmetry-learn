@@ -1,8 +1,8 @@
 import numpy as np
 from typing import Iterable, List, Tuple, Optional
 from itertools import combinations, combinations_with_replacement
-from ._wyckoff_position import wyckoff_pos, WyckoffPosition, WyckoffStructure
-
+from ._wyckoff_position import wyckoff_pos, WyckoffPosition
+from ._wyckoff_structure import WyckoffStructure
 def power_set(seq: list, exclude_empty: bool = True) -> list:
     """
     Return all subsets of `seq` (the power set).
@@ -241,7 +241,10 @@ def split_wyckoff_letters(pg_num):
 def get_structure_letters(pg_num, max_counts=8):
     fixed_letters, variable_letters = split_wyckoff_letters(pg_num=pg_num)
     fixed_set = all_power_sets(fixed_letters, exclude_empty=False)
-    variable_set = all_multisets(variable_letters, exclude_empty=False)
+
+    variable_multiplicity = np.array([WyckoffPosition(pg_num, letter).multiplicity for letter in variable_letters])
+    max_size = max_counts // variable_multiplicity.min()
+    variable_set = all_multisets(variable_letters, max_size=max_size, exclude_empty=False)
 
     variable_set = np.array(variable_set, dtype=object)
 
@@ -256,7 +259,7 @@ def get_structure_letters(pg_num, max_counts=8):
         for e2 in variable_set[mask]:
             # e1 is also a list
             final_list.append(e1+e2)
-    return final_list
+    return final_list[1:]
 
 def mix_combination(pg_num,max_counts=8):
     fixed_letters, general_letters = split_wyckoff_letters(pg_num=pg_num)

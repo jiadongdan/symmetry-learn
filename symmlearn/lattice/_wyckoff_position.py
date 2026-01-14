@@ -2,6 +2,7 @@ import re
 import numpy as np
 from typing import List, Tuple, Optional, Union
 
+
 # Wyckoff definitions for 2D plane groups
 wyckoff_pos = {
     1: {'a': ['x, y']},
@@ -207,14 +208,3 @@ class WyckoffPosition:
                 out.append((xv % 1.0, yv % 1.0))
 
         return np.asarray(out, dtype=float)
-
-class WyckoffStructure:
-
-    def __init__(self, pg_num, structure_letters):
-        self.structure_letters = structure_letters
-        self.pg_num = pg_num
-        self.unique_atoms = len(structure_letters)
-
-    @property
-    def num_atoms(self):
-        return sum([len(wyckoff_pos[self.pg_num][letter]) for letters in self.structure_letters for letter in letters])

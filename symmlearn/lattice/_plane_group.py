@@ -273,7 +273,8 @@ class PlaneGroup(MixinShowPG):
                          angle_deg = None,
                          sigma_method: str = 'mean',
                          metric_method: str = 'avg_nn',
-                         seed: Optional[int] = None
+                         seed: Optional[int] = None,
+                         reduce_unit_cell = True,
         ) -> Atoms:
         rng = np.random.default_rng(seed)
         atoms_unit_cell = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
@@ -297,7 +298,8 @@ class PlaneGroup(MixinShowPG):
         atoms_unit_cell_after_transformation = atoms_unit_cell.copy()
         atoms_unit_cell_after_transformation.rotate('z', angle_deg, rotate_cell=True)
 
-        atoms_unit_cell_after_transformation = reduce_unit_cell_atoms(atoms_unit_cell_after_transformation)
+        if reduce_unit_cell:
+            atoms_unit_cell_after_transformation = reduce_unit_cell_atoms(atoms_unit_cell_after_transformation)
 
         return PGLattice(pg_number=self.pg_number,
                          atoms=atoms,

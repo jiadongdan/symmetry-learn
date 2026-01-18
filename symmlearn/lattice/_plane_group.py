@@ -298,7 +298,7 @@ class PlaneGroup(MixinShowPG):
         atoms_unit_cell_after_transformation = atoms_unit_cell.copy()
         atoms_unit_cell_after_transformation.rotate('z', angle_deg, rotate_cell=True)
 
-        if reduce_unit_cell:
+        if reduce_unit_cell and self.pg_number not in [5, 9]:
             atoms_unit_cell_after_transformation = reduce_unit_cell_atoms(atoms_unit_cell_after_transformation)
 
         return PGLattice(pg_number=self.pg_number,

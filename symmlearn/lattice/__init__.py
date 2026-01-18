@@ -12,6 +12,7 @@ from ._crystal_systems import random_structure_A
 from ._structure_dict import mix_combination
 from ._structure_dict import get_structure_letters
 from ._wyckoff_structure import WyckoffStructure
+from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms
 
 __all__ = ['PlaneGroup',
            'WyckoffPosition',
@@ -27,4 +28,5 @@ __all__ = ['PlaneGroup',
            'mix_combination',
            'get_structure_letters',
            'WyckoffStructure',
+           'reduce_unit_cell_atoms',
            ]

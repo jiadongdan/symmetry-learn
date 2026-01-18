@@ -8,23 +8,7 @@ from ._wyckoff_position import WyckoffPosition, wyckoff_pos
 from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
 from ._pg_image import PGLattice
 from ._mixin_plane_group import MixinShowPG, generate_plane_group_cell
-
-def reduce_unit_cell_atoms(atoms):
-    cell_matrix = atoms.cell[:]
-    positions = atoms.get_scaled_positions()
-    numbers = atoms.get_atomic_numbers()
-    spg_cell = (cell_matrix, positions, numbers)
-    primitive_cell = spglib.find_primitive(spg_cell)
-    if primitive_cell is None:
-        return atoms
-    cell_matrix, positions, numbers = primitive_cell
-    reduced_atoms = Atoms(
-        numbers=numbers,
-        scaled_positions=positions,
-        cell=cell_matrix,
-        pbc=True,
-    )
-    return reduced_atoms
+from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms
 
 
 def _min_dist_metric(atoms: Atoms) -> float:

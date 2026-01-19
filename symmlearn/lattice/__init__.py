@@ -2,8 +2,7 @@ from ._wyckoff_position import WyckoffPosition
 from ._wyckoff_position import wyckoff_pos
 from ._plane_group import PlaneGroup
 from ._plane_group import is_new_atoms_better
-from ._plane_group import make_cell_square
-from ._plane_group import make_cell_rectangular
+from ._utils import make_cell_square
 from ._mixin_plane_group import generate_plane_group_cell
 from ._pg_image import PGLattice
 from ._pg_image import PGImage
@@ -33,7 +32,5 @@ __all__ = ['PlaneGroup',
            'get_structure_letters',
            'WyckoffStructure',
            'reduce_unit_cell_atoms',
-           'reduce_unit_cell_atoms_',
            'make_cell_square',
-           'make_cell_rectangular',
            ]

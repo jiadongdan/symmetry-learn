@@ -6,10 +6,10 @@ import spglib
 from ..utils import show_atoms
 
 from ._wyckoff_position import WyckoffPosition, wyckoff_pos
-from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
+from ._utils import make_cell_square, rotate_atoms_xy_center, crop_atoms_xy_center
 from ._pg_image import PGLattice
 from ._mixin_plane_group import MixinShowPG, generate_plane_group_cell
-from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms, reduce_unit_cell_atoms_
+from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms, is_cell_same_size
 
 
 def _min_dist_metric(atoms: Atoms) -> float:
@@ -87,40 +87,6 @@ def random_supercell(unit_cell, size):
     l = min(a, b)
     s = int(np.ceil(size / l) * 3)
     return (s, s, 1)
-
-def make_cell_rectangular(atoms: Atoms):
-    new_atoms = atoms.copy()
-    cell = new_atoms.cell.copy()
-
-    # in xy plane
-    cell[0, 1] = 0  # Remove xy shear
-    cell[1, 0] = 0  # Remove yx shear
-
-    new_atoms.set_cell(cell, scale_atoms=False) # scale_atoms=False, Prevent atomic position scaling
-    new_atoms.wrap()  # Ensure atoms are inside the new cell
-    return new_atoms
-
-def make_cell_square(atoms: Atoms):
-    new_atoms = make_cell_rectangular(atoms)
-    cell = new_atoms.cell.copy()
-
-    # Create the new square cell
-    size = min(cell[0, 0], cell[1, 1])
-    cell[0, 0] = size
-    cell[1, 1] = size
-
-    # Before set_cell, we have to make periodic boundary condition False,
-    # then scaled_positions won't be scaled to [0, 1]
-    new_atoms.set_pbc(False)
-
-    # Apply the new cell
-    new_atoms.set_cell(cell, scale_atoms=False)  # positions do not change, but scaled_positions updated
-    scaled_positions = new_atoms.get_scaled_positions()
-    # Remove atoms that are outside [0,1) in any direction
-    mask = (scaled_positions >= 0).all(axis=1) & (scaled_positions < 1).all(axis=1)
-    new_atoms_ = new_atoms[mask]  # Remove atoms outside the new cell
-
-    return new_atoms_
 
 class PlaneGroup(MixinShowPG):
     """
@@ -275,33 +241,40 @@ class PlaneGroup(MixinShowPG):
                          sigma_method: str = 'mean',
                          metric_method: str = 'avg_nn',
                          seed: Optional[int] = None,
-                         reduce_unit_cell = True,
+                         debug = False,
         ) -> Atoms:
         rng = np.random.default_rng(seed)
-        atoms_unit_cell = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
+        atoms_unit_cell_ = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
                                                                 cell=cell,
                                                                 a_range=a_range,
                                                                 thickness=thickness,
                                                                 max_samples=max_samples,
                                                                 metric_method=metric_method,
                                                                 seed=rng)
-        atoms_unit_cell, pg_num_new = reduce_unit_cell_atoms(atoms_unit_cell)
+        atoms_unit_cell, pg_num_new = reduce_unit_cell_atoms(atoms_unit_cell_)
+
+        if pg_num_new != self.pg_number:
+            print('Plane Group number has been updated from {} to {}'.format(self.pg_number, pg_num_new))
+        if not is_cell_same_size(atoms_unit_cell_.cell, atoms_unit_cell.cell):
+            print('Unit cell has been updated.')
 
         supercell = random_supercell(atoms_unit_cell.get_cell(), size)
         # print(supercell)
         if angle_deg is None:
             angle_deg = rng.uniform(0, 360)
 
-        atoms = atoms_unit_cell * supercell   # cell grows
-        atoms = make_cell_square(atoms)
-        atoms = rotate_atoms_xy_center(atoms, angle_deg)
+        atoms_unit_cell.rotate('z', angle_deg, rotate_cell=True) # rotate unit cell atoms
+        atoms = atoms_unit_cell * supercell                      # atoms grow
+        if debug:
+            show_atoms(atoms)
+        atoms = make_cell_square(atoms)                          # make atoms square
+        if debug:
+            show_atoms(atoms)
         atoms = crop_atoms_xy_center(atoms, a_new=size, b_new=size)
-
-        # Only apply rotation to the unit cell (make_cell_square affects unit cell differently than supercell)
-        atoms_unit_cell_after_transformation = atoms_unit_cell.copy()
-        atoms_unit_cell_after_transformation.rotate('z', angle_deg, rotate_cell=True)
+        if debug:
+            show_atoms(atoms)
 
         return PGLattice(pg_number=pg_num_new,
                          atoms=atoms,
-                         unit_cell_atoms=atoms_unit_cell_after_transformation,
+                         unit_cell_atoms=atoms_unit_cell,
                          sigma_method=sigma_method)

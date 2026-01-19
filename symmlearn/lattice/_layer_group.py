@@ -36,14 +36,15 @@ def get_layer_group(atoms, aperiodic_axis=2, symprec=1e-5):
             "Layer-group search failed – try more vacuum or a larger symprec."
         )
 
-    # 3) extract via the attribute interface only
-    return ds.number
+    # 3) return symmetry dataset
+    return ds
 
 def get_plane_group(atoms, aperiodic_axis=2, symprec=1e-5):
-    lg_number = get_layer_group(atoms, aperiodic_axis=aperiodic_axis, symprec=symprec)
+    ds = get_layer_group(atoms, aperiodic_axis=aperiodic_axis, symprec=symprec)
+    lg_number = ds.number
     try:
         pg_number = layer2plane(lg_number)
     except KeyError:
-        raise ValueError(f"No mapping to a plane group for layer group #{lg}")
+        raise ValueError(f"No mapping to a plane group for layer group #{lg_number}")
     return pg_number
 

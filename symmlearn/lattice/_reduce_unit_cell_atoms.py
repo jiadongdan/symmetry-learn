@@ -2,7 +2,31 @@ import spglib
 import numpy as np
 from ase import Atoms
 from scipy.optimize import minimize_scalar
+from ._layer_group import get_layer_group, layer2plane
 
+def reduce_unit_cell_atoms_(unit_cell_atoms):
+    # get symmetry dataset
+    ds = get_layer_group(unit_cell_atoms)
+    # get plane group number
+    lg_number = ds.number
+    try:
+        pg_number = layer2plane(lg_number)
+    except KeyError:
+        raise ValueError(f"No mapping to a plane group for layer group #{lg_number}")
+    # get new unit cell and atoms
+    # Standardized (conventional) cell
+    std_lattice = ds.std_lattice           # 3x3 array
+    std_positions = ds.std_positions       # Nx3 fractional coordinates
+    std_types = ds.std_types               # atomic numbers
+
+    # You can rebuild an ASE Atoms object:
+    std_atoms = Atoms(
+        numbers=std_types,
+        scaled_positions=std_positions,
+        cell=std_lattice,
+        pbc=[True, True, False]  # adjust based on aperiodic_axis
+    )
+    return std_atoms, pg_number
 
 def reduce_unit_cell_atoms(atoms):
     """

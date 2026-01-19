@@ -13,6 +13,8 @@ from ._structure_dict import mix_combination
 from ._structure_dict import get_structure_letters
 from ._wyckoff_structure import WyckoffStructure
 from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms
+from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms_
+
 
 __all__ = ['PlaneGroup',
            'WyckoffPosition',
@@ -29,4 +31,5 @@ __all__ = ['PlaneGroup',
            'get_structure_letters',
            'WyckoffStructure',
            'reduce_unit_cell_atoms',
+           'reduce_unit_cell_atoms_'
            ]

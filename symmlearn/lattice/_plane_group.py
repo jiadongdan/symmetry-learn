@@ -8,7 +8,7 @@ from ._wyckoff_position import WyckoffPosition, wyckoff_pos
 from ._utils import rotate_atoms_xy_center, crop_atoms_xy_center
 from ._pg_image import PGLattice
 from ._mixin_plane_group import MixinShowPG, generate_plane_group_cell
-from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms
+from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms, reduce_unit_cell_atoms_
 
 
 def _min_dist_metric(atoms: Atoms) -> float:
@@ -284,6 +284,8 @@ class PlaneGroup(MixinShowPG):
                                                                 max_samples=max_samples,
                                                                 metric_method=metric_method,
                                                                 seed=rng)
+        atoms_unit_cell, pg_num_new = reduce_unit_cell_atoms_(atoms_unit_cell)
+
         supercell = random_supercell(atoms_unit_cell.get_cell(), size)
         # print(supercell)
         if angle_deg is None:
@@ -298,10 +300,10 @@ class PlaneGroup(MixinShowPG):
         atoms_unit_cell_after_transformation = atoms_unit_cell.copy()
         atoms_unit_cell_after_transformation.rotate('z', angle_deg, rotate_cell=True)
 
-        if reduce_unit_cell and self.pg_number not in [5, 9]:
-            atoms_unit_cell_after_transformation = reduce_unit_cell_atoms(atoms_unit_cell_after_transformation)
+        #if reduce_unit_cell and self.pg_number not in [5, 9]:
+        #    atoms_unit_cell_after_transformation = reduce_unit_cell_atoms(atoms_unit_cell_after_transformation)
 
-        return PGLattice(pg_number=self.pg_number,
+        return PGLattice(pg_number=pg_num_new,
                          atoms=atoms,
                          unit_cell_atoms=atoms_unit_cell_after_transformation,
                          sigma_method=sigma_method)

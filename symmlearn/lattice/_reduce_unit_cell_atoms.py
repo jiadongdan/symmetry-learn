@@ -28,6 +28,20 @@ def reduce_unit_cell_atoms(unit_cell_atoms):
     )
     return std_atoms, pg_number
 
+def is_cell_same_size(cell1, cell2, tol=1e-5):
+    """
+    Check if two ASE cells have the same size and shape.
+    """
+    lengths1 = np.sort(cell1.lengths())
+    lengths2 = np.sort(cell2.lengths())
+
+    angles1 = np.sort(cell1.angles())
+    angles2 = np.sort(cell2.angles())
+
+    return (np.allclose(lengths1, lengths2, atol=tol) and
+            np.allclose(angles1, angles2, atol=tol))
+
+
 def reduce_unit_cell_atoms_(atoms):
     """
     Reduce atoms to primitive cell while preserving the original orientation.

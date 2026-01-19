@@ -51,7 +51,7 @@ def plane2layer(plane_group: int) -> List[int]:
     return sorted(_pg2lg[plane_group])
 
 
-def rotate_atoms_xy_center(atoms, angle_deg):
+def rotate_atoms_xy_center(atoms, angle_deg, rotate_cell=True):
     """
     Rotate an ASE Atoms object in the XY plane around the center (a/2, b/2).
 
@@ -65,7 +65,7 @@ def rotate_atoms_xy_center(atoms, angle_deg):
     a = atoms.cell[0, 0]
     b = atoms.cell[1, 1]
     center = (a / 2, b / 2, 0)
-    atoms.rotate('z', angle_deg, center=center, rotate_cell=False)
+    atoms.rotate('z', angle_deg, center=center, rotate_cell=rotate_cell)
     return atoms
 
 def crop_atoms_xy_center(atoms, a_new=None, b_new=None):
@@ -119,3 +119,115 @@ def crop_atoms_xy_center(atoms, a_new=None, b_new=None):
     return cropped
 
 
+def make_cell_square(atoms):
+    """
+    Extract atoms within the largest inscribed square of the cell.
+
+    The inscribed square is found by:
+    1. Finding the inscribed circle (largest circle fitting in the cell)
+    2. Getting the inscribed square within that circle
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Input atoms object
+
+    Returns
+    -------
+    ase.Atoms
+        New atoms object with only atoms within the inscribed square
+    """
+    import numpy as np
+    from ase import Atoms
+
+    cell = atoms.get_cell()
+
+    # Get the 2D cell vectors (assuming we care about xy plane)
+    a = cell[0, :2]
+    b = cell[1, :2]
+
+    # Find the inscribed circle radius
+    # For a parallelogram, the inscribed circle radius is:
+    # r = area / semi-perimeter = |a × b| / (|a| + |b|)
+    # But more precisely, it's the minimum distance from center to any edge
+
+    # Calculate distances from origin to each edge of the parallelogram
+    # The four edges are: along a, along b, along a+b from b, along a+b from a
+
+    len_a = np.linalg.norm(a)
+    len_b = np.linalg.norm(b)
+
+    # Height of parallelogram (perpendicular distance between parallel sides)
+    cross = abs(a[0] * b[1] - a[1] * b[0])  # 2D cross product (area)
+    h_a = cross / len_a  # distance between edges parallel to a
+    h_b = cross / len_b  # distance between edges parallel to b
+
+    # The inscribed circle radius is half the minimum height
+    r_inscribed = min(h_a, h_b) / 2
+
+    # The inscribed square within a circle has side length s = r * sqrt(2)
+    # (diagonal of square = diameter of circle = 2r, so s = 2r/sqrt(2) = r*sqrt(2))
+    square_side = r_inscribed * np.sqrt(2)
+    half_side = square_side / 2
+
+    # Center of the cell
+    center = (a + b) / 2
+
+    # Get atom positions in 2D
+    positions = atoms.get_positions()
+    pos_2d = positions[:, :2]
+
+    # Find atoms within the square centered at cell center
+    # Square is axis-aligned
+    relative_pos = pos_2d - center
+    within_square = (np.abs(relative_pos[:, 0]) <= half_side) & \
+                    (np.abs(relative_pos[:, 1]) <= half_side)
+
+    # Create new atoms object with filtered atoms
+    new_atoms = Atoms(
+        symbols=[atoms[i].symbol for i in range(len(atoms)) if within_square[i]],
+        positions=positions[within_square],
+        cell=[square_side, square_side, cell[2, 2]],
+        pbc=atoms.pbc
+    )
+
+    # Center the atoms in the new cell
+    new_positions = new_atoms.get_positions()
+    new_positions[:, 0] -= (center[0] - half_side)
+    new_positions[:, 1] -= (center[1] - half_side)
+    new_atoms.set_positions(new_positions)
+
+    return new_atoms
+
+def rescale_square_atoms(atoms, size):
+    """
+    Rescale a square cell to a new size.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Input atoms object with a square cell
+    size : float
+        New cell side length
+
+    Returns
+    -------
+    ase.Atoms
+        Rescaled atoms object
+
+    Raises
+    ------
+    ValueError
+        If cell is not square
+    """
+    cell = atoms.get_cell()
+
+    # Validate square cell
+    a, b = cell[0, 0], cell[1, 1]
+    if not np.isclose(a, b, rtol=1e-5):
+        raise ValueError(f"Cell is not square: {a:.4f} x {b:.4f}")
+
+    new_atoms = atoms.copy()
+    new_atoms.set_cell([size, size, cell[2, 2]], scale_atoms=True)
+
+    return new_atoms

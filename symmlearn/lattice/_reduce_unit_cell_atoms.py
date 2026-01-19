@@ -4,7 +4,7 @@ from ase import Atoms
 from scipy.optimize import minimize_scalar
 from ._layer_group import get_layer_group, layer2plane
 
-def reduce_unit_cell_atoms_(unit_cell_atoms):
+def reduce_unit_cell_atoms(unit_cell_atoms):
     # get symmetry dataset
     ds = get_layer_group(unit_cell_atoms)
     # get plane group number
@@ -28,7 +28,7 @@ def reduce_unit_cell_atoms_(unit_cell_atoms):
     )
     return std_atoms, pg_number
 
-def reduce_unit_cell_atoms(atoms):
+def reduce_unit_cell_atoms_(atoms):
     """
     Reduce atoms to primitive cell while preserving the original orientation.
     """

@@ -258,7 +258,7 @@ def get_structure_letters(pg_num, max_counts=8):
         mask = variable_set_counts <= counts
         for e2 in variable_set[mask]:
             # e1 is also a list
-            final_list.append(e1+e2)
+            final_list.append(''.join(e1+e2))
     return final_list[1:]
 
 def mix_combination(pg_num,max_counts=8):

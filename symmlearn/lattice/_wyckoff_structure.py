@@ -7,13 +7,13 @@ from ._layer_group import get_plane_group
 class WyckoffStructure:
 
     def __init__(self, pg_num, structure_letters):
-        self.structure_letters = structure_letters
+        self.structure_letters = list(structure_letters)
         self.pg_num = pg_num
-        self.unique_atoms = len(structure_letters)
+        self.unique_atoms = len(self.structure_letters)
 
     @property
     def num_atoms(self):
-        return sum([len(wyckoff_pos[self.pg_num][letter]) for letters in self.structure_letters for letter in letters])
+        return sum([len(wyckoff_pos[self.pg_num][letter]) for letter in self.structure_letters])
 
     def is_all_fixed_pos(self):
         status = [WyckoffPosition(self.pg_num, letter).is_special_fixed() for letter in self.structure_letters]
@@ -33,7 +33,7 @@ class WyckoffStructure:
         try:
             iter(elements)
         except:
-            raise TypeError(f"Elemnets must be a list or 1d numpy array.")
+            raise TypeError(f"Elements must be a list or 1d numpy array.")
 
         n = len(elements)
 
@@ -69,5 +69,5 @@ class WyckoffStructure:
             start += size
         structure_dict = {}
         for element, sect in zip(elements, sections):
-            structure_dict[element] = sect
+            structure_dict[element] = ''.join(sect)
         return structure_dict

@@ -552,29 +552,29 @@ class MixinPGFeatures:
 
     def is_typical(self, verbose=False):
         if self.pg_number == 1:
-            return _is_typical_pg1(self,verbose=verbose)
+            return _is_typical_pg1(self, verbose=verbose)
         elif self.pg_number == 2:
-            return _is_typical_pg2(self,verbose=verbose)
+            return _is_typical_pg2(self, verbose=verbose)
         elif self.pg_number == 3:
-            return _is_typical_pg3(self,verbose=verbose)
+            return _is_typical_pg3(self, verbose=verbose)
         elif self.pg_number == 4:
-            return _is_typical_pg4(self,verbose=verbose)
+            return _is_typical_pg4(self, verbose=verbose)
         elif self.pg_number == 5:
-            return _is_typical_pg5(self,verbose=verbose)
+            return _is_typical_pg5(self, verbose=verbose)
         elif self.pg_number == 6:
-            return _is_typical_pg6(self,verbose=verbose)
+            return _is_typical_pg6(self, verbose=verbose)
         elif self.pg_number == 7:
-            return _is_typical_pg7(self,verbose=verbose)
+            return _is_typical_pg7(self, verbose=verbose)
         elif self.pg_number == 8:
-            return _is_typical_pg8(self,verbose=verbose)
+            return _is_typical_pg8(self, verbose=verbose)
         elif self.pg_number == 9:
-            return _is_typical_pg9(self,verbose=verbose)
+            return _is_typical_pg9(self, verbose=verbose)
         elif self.pg_number == 10:
-            return _is_typical_pg10(self,verbose=verbose)
+            return _is_typical_pg10(self, verbose=verbose)
         elif self.pg_number == 11:
-            return _is_typical_pg11(self,verbose=verbose)
+            return _is_typical_pg11(self, verbose=verbose)
         elif self.pg_number == 12:
-            return _is_typical_pg12(self,verbose=verbose)
+            return _is_typical_pg12(self, verbose=verbose)
         elif self.pg_number == 13:
             return _is_typical_pg13(self, verbose=verbose)
         elif self.pg_number == 14:

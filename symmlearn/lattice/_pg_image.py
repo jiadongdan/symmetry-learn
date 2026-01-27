@@ -10,7 +10,7 @@ from ..maps import get_rot_maps, get_ref_map
 from ._tapered_gaussian import add_tapered_gaussian
 from ._mixin_plane_group import transform_via_cell
 from ._mixin_plane_group import PG_PATTERNS
-from ._mixin_plane_group import MixinPGFeatures
+from ._mixin_plane_group import MixinPGFeatures, MixinPGSymmetry
 from ._line_drawing import get_line
 
 def _estimate_sigma(atoms, method='mean'):
@@ -384,7 +384,7 @@ class PGLattice:
         return PGImage(self.pg_number, img, patch_size, unit_cell_corners)
 
 
-class PGImage(MixinPGFeatures):
+class PGImage(MixinPGFeatures, MixinPGSymmetry):
 
     def __init__(self, pg_number, img, patch_size, unit_cell_corners):
         self.pg_number = pg_number

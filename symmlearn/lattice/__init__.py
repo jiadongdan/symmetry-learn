@@ -12,6 +12,7 @@ from ._utils import plane2layer, layer2plane
 from ._crystal_systems import random_structure_A
 from ._structure_dict import mix_combination
 from ._structure_dict import get_structure_letters
+from ._structure_dict import split_wyckoff_letters
 from ._wyckoff_structure import WyckoffStructure
 from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms
 from ._reduce_unit_cell_atoms import reduce_unit_cell_atoms_
@@ -33,4 +34,5 @@ __all__ = ['PlaneGroup',
            'WyckoffStructure',
            'reduce_unit_cell_atoms',
            'make_cell_square',
+           'split_wyckoff_letters',
            ]

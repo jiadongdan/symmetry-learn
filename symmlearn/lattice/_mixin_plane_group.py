@@ -536,11 +536,11 @@ class MixinShowPG:
         ax.axis('off')
 
 class MixinPGSymmetry:
-    def show(self, ax=None, seed=None):
+    def show(self, ax=None):
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(7.2, 7.2))
 
-        ax.imshow(self.img, vmin = 0, vmax = 1)
+        ax.imshow(self.img, cmap = 'gray')
         ax.scatter(self.unit_cell_corners[:, 0], self.unit_cell_corners[:, 1], s=10, color='red', zorder=5)
         cell = self.unit_cell
 
@@ -560,27 +560,27 @@ class MixinPGSymmetry:
 
         if P2 is not None:
             P2 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P2, n_fold=2, color='#2d3742', zorder=5, s=10)
+            add_rotational_centers(ax, P2, n_fold=2, color='C0', zorder=5, s=100)
         if P3 is not None:
             P3 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P3, n_fold=3, color='#2d3742', zorder=5, s=10)
+            add_rotational_centers(ax, P3, n_fold=3, color='C1', zorder=5, s=100)
         if P4 is not None:
             P4 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P4, n_fold=4, color='#2d3742', zorder=5, s=10)
+            add_rotational_centers(ax, P4, n_fold=4, color='C2', zorder=5, s=100)
         if P6 is not None:
             P6 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P6, n_fold=6, color='#2d3742', zorder=5, s=10)
+            add_rotational_centers(ax, P6, n_fold=6, color='C3', zorder=5, s=100)
 
         if mirror_pairs is not None:
             mirror_pairs += self.unit_cell_corners[0]
-            add_lines(ax, mirror_pairs, lw=2)
+            add_lines(ax, mirror_pairs, lw=2, color='cyan')
 
         if glide_pairs is not None:
             glide_pairs += self.unit_cell_corners[0]
-            add_lines(ax, glide_pairs, lw=1, ls='--')
+            add_lines(ax, glide_pairs, lw=1, ls='--', color='yellow')
 
         outline_pairs += self.unit_cell_corners[0]
-        add_lines(ax, outline_pairs, lw=0.5, color='k')
+        add_lines(ax, outline_pairs, lw=0.5, color='red')
 
         ax.axis('equal')
         ax.axis('off')

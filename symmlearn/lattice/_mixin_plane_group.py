@@ -535,6 +535,57 @@ class MixinShowPG:
         ax.axis('equal')
         ax.axis('off')
 
+class MixinPGSymmetry:
+    def show(self, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(7.2, 7.2))
+
+        ax.imshow(self.img, cmap = 'gray')
+        ax.scatter(self.unit_cell_corners[:, 0], self.unit_cell_corners[:, 1], s=10, color='red', zorder=5)
+        cell = self.unit_cell
+
+        try:
+            pattern = PG_PATTERNS[self.pg_number]
+        except KeyError:
+            raise NotImplementedError(f"No pattern defined for pg {self.pg_number}")
+
+        P2 = transform_via_cell(pattern.P2, cell)
+        P3 = transform_via_cell(pattern.P3, cell)
+        P4 = transform_via_cell(pattern.P4, cell)
+        P6 = transform_via_cell(pattern.P6, cell)
+
+        mirror_pairs = transform_via_cell(pattern.mirror_pairs, cell)
+        glide_pairs = transform_via_cell(pattern.glide_pairs, cell)
+        outline_pairs = transform_via_cell(pattern.outline_pairs, cell)
+
+        if P2 is not None:
+            P2 += self.unit_cell_corners[0]
+            add_rotational_centers(ax, P2, n_fold=2, color='C0', zorder=5, s=100)
+        if P3 is not None:
+            P3 += self.unit_cell_corners[0]
+            add_rotational_centers(ax, P3, n_fold=3, color='C1', zorder=5, s=100)
+        if P4 is not None:
+            P4 += self.unit_cell_corners[0]
+            add_rotational_centers(ax, P4, n_fold=4, color='C2', zorder=5, s=100)
+        if P6 is not None:
+            P6 += self.unit_cell_corners[0]
+            add_rotational_centers(ax, P6, n_fold=6, color='C3', zorder=5, s=100)
+
+        if mirror_pairs is not None:
+            mirror_pairs += self.unit_cell_corners[0]
+            add_lines(ax, mirror_pairs, lw=2, color='cyan')
+
+        if glide_pairs is not None:
+            glide_pairs += self.unit_cell_corners[0]
+            add_lines(ax, glide_pairs, lw=1, ls='--', color='yellow')
+
+        outline_pairs += self.unit_cell_corners[0]
+        add_lines(ax, outline_pairs, lw=0.5, color='red')
+
+        ax.axis('equal')
+        ax.axis('off')
+
+
 class MixinPGFeatures:
 
     def get_features(self):

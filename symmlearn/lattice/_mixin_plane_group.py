@@ -536,7 +536,7 @@ class MixinShowPG:
         ax.axis('off')
 
 class MixinPGSymmetry:
-    def show(self, ax=None):
+    def show(self, ax=None, alpha=0.5):
         
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(7.2, 7.2))
@@ -561,29 +561,35 @@ class MixinPGSymmetry:
 
         if P2 is not None:
             P2 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P2, n_fold=2, color='C0', zorder=5, s=100)
+            add_rotational_centers(ax, P2, n_fold=2, color='C0', zorder=5, s=100, alpha=alpha)
         if P3 is not None:
             P3 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P3, n_fold=3, color='C1', zorder=5, s=100)
+            add_rotational_centers(ax, P3, n_fold=3, color='C1', zorder=5, s=100, alpha=alpha)
         if P4 is not None:
             P4 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P4, n_fold=4, color='C2', zorder=5, s=100)
+            add_rotational_centers(ax, P4, n_fold=4, color='C2', zorder=5, s=100, alpha=alpha)
         if P6 is not None:
             P6 += self.unit_cell_corners[0]
-            add_rotational_centers(ax, P6, n_fold=6, color='C3', zorder=5, s=100)
+            add_rotational_centers(ax, P6, n_fold=6, color='C3', zorder=5, s=100, alpha=alpha)
 
         if mirror_pairs is not None:
             mirror_pairs += self.unit_cell_corners[0]
-            add_lines(ax, mirror_pairs, lw=2, color='cyan')
+            add_lines(ax, mirror_pairs, lw=2, color='cyan', alpha=alpha)
 
         if glide_pairs is not None:
             glide_pairs += self.unit_cell_corners[0]
-            add_lines(ax, glide_pairs, lw=1, ls='--', color='yellow')
+            add_lines(ax, glide_pairs, lw=1, ls='--', color='yellow', alpha=alpha)
 
         outline_pairs += self.unit_cell_corners[0]
-        add_lines(ax, outline_pairs, lw=0.5, color='red')
+        add_lines(ax, outline_pairs, lw=0.5, color='red', alpha=alpha)
 
-        ax.axis('equal')
+        l = 1.5 * np.maximum(np.ptp(outline_pairs[:, 0]), np.ptp(outline_pairs[:, 1]))
+        x0 = np.mean(outline_pairs[:, 0])
+        y0 = np.mean(outline_pairs[:, 1])
+
+        ax.set_xlim(x0 - l, x0 + l)
+        ax.set_ylim(y0 - l, y0 + l)
+        #ax.axis('equal')
         ax.axis('off')
 
 

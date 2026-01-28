@@ -537,6 +537,7 @@ class MixinShowPG:
 
 class MixinPGSymmetry:
     def show(self, ax=None):
+        
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(7.2, 7.2))
 

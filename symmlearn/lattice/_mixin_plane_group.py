@@ -6,6 +6,7 @@ from matplotlib.collections import LineCollection
 from ase.cell import Cell
 
 from ._line_drawing import get_line
+from ..utils import check_random_state
 
 
 def generate_plane_group_cell(
@@ -45,7 +46,7 @@ def generate_plane_group_cell(
     square = {10, 11, 12}
     hexagonal = set(range(13, 18))
 
-    rng = np.random.default_rng(seed)
+    rng = check_random_state(seed)
     # Sample a if needed
     if a is None:
         a = float(rng.uniform(a_range[0], a_range[1]))

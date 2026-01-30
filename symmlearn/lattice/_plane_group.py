@@ -3,7 +3,7 @@ import numpy as np
 from ase.cell import Cell
 from ase import Atoms
 import spglib
-from ..utils import show_atoms
+from ..utils import show_atoms, check_random_state
 
 from ._wyckoff_position import WyckoffPosition, wyckoff_pos
 from ._utils import make_cell_square, rotate_atoms_xy_center, crop_atoms_xy_center
@@ -158,7 +158,7 @@ class PlaneGroup(MixinShowPG):
         Returns:
             An ASE Atoms object with symbols and scaled positions.
         """
-        rng = np.random.default_rng(seed)
+        rng = check_random_state(seed)
         if cell is None:
             cell = generate_plane_group_cell(self.pg_number, a_range=a_range, c=thickness, seed=seed)
 
@@ -204,7 +204,7 @@ class PlaneGroup(MixinShowPG):
         Returns:
             The ASE Atoms object for the best-packed sample.
         """
-        rng = np.random.default_rng(seed)
+        rng = check_random_state(seed)
         num_samples = rng.integers(1, max_samples, endpoint=True)
         # pre-generate unique seeds for each sample
         sample_seeds = rng.integers(0, 2**32, size=num_samples)
@@ -243,7 +243,7 @@ class PlaneGroup(MixinShowPG):
                          seed: Optional[int] = None,
                          debug = False,
         ) -> Atoms:
-        rng = np.random.default_rng(seed)
+        rng = check_random_state(seed)
         atoms_unit_cell_ = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
                                                                 cell=cell,
                                                                 a_range=a_range,

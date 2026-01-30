@@ -2,6 +2,7 @@ import numpy as np
 from ._wyckoff_position import wyckoff_pos, WyckoffPosition
 from ._plane_group import PlaneGroup
 from ._layer_group import get_plane_group
+from ..utils._ramdom import check_random_state
 
 
 class WyckoffStructure:
@@ -30,7 +31,7 @@ class WyckoffStructure:
         if len(self.structure_letters) < n:
             raise ValueError(f"Cannot split {len(self.structure_letters)} items into {n} sections with size >= 1.")
 
-        rng = np.random.default_rng(seed)
+        rng = check_random_state(seed)
 
         shuffled = np.array(self.structure_letters)
         rng.shuffle(shuffled)

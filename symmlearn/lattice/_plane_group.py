@@ -277,4 +277,5 @@ class PlaneGroup(MixinShowPG):
         return PGLattice(pg_number=pg_num_new,
                          atoms=atoms,
                          unit_cell_atoms=atoms_unit_cell,
-                         sigma_method=sigma_method)
+                         sigma_method=sigma_method,
+                         angle_deg=angle_deg)

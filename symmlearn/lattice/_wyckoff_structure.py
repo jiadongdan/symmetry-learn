@@ -20,7 +20,7 @@ class WyckoffStructure:
         status = [WyckoffPosition(self.pg_num, letter).is_special_fixed() for letter in self.structure_letters]
         return np.all(status)
 
-    def to_structure_dict(self, elements=['C'], seed=None):
+    def to_structure_dict(self, elements=['C', 'B'], seed=None):
         try:
             iter(elements)
         except:
@@ -29,8 +29,8 @@ class WyckoffStructure:
         n = len(elements)
 
         if len(self.structure_letters) < n:
-            raise ValueError(f"Cannot split {len(self.structure_letters)} items into {n} sections with size >= 1.")
-
+            elements = elements[:len(self.structure_letters)]
+            n = len(elements)
         rng = check_random_state(seed)
 
         shuffled = np.array(self.structure_letters)

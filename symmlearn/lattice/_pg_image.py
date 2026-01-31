@@ -312,7 +312,7 @@ def _is_valid_match(
 
 class PGLattice:
 
-    def __init__(self, pg_number, atoms, unit_cell_atoms, sigma_method='mean'):
+    def __init__(self, pg_number, atoms, unit_cell_atoms, angle_deg, sigma_method='mean'):
         self.pg_number = pg_number
         self.atoms = atoms
         self.unit_cell_atoms = unit_cell_atoms
@@ -320,8 +320,10 @@ class PGLattice:
         self.sigma_ = _estimate_sigma(self.atoms, method=sigma_method)
         self.size = int(self.atoms.get_cell().cellpar()[0])
         self.sigma_map = None
+        self.angle_deg = angle_deg
+        self.amplitude_map = None
 
-    def get_image(self, image_size, sigma_map=None, amplitude_map=None, seed=None, shift_range=0.0):
+    def get_image(self, image_size, sigma_map=None, amplitude_map=None, amplitude_range = (0.3,0.7), seed=None, shift_range=0.0):
         rng = check_random_state(seed)
         if sigma_map is None:
             sigma_min = self.sigma_ * (image_size) * 0.16
@@ -330,11 +332,27 @@ class PGLattice:
             sigma_map = max(1.2, sigma_map)
         self.sigma_map = sigma_map
 
+        elements = np.unique(self.unit_cell_atoms.get_chemical_symbols())
+
+        if amplitude_map is None:
+            if len(elements) == 1:
+                self.amplitude_map = {elements[0]: 1}
+            else:
+                first_amplitude = 1
+                other_amplitudes = rng.uniform(amplitude_range[0],amplitude_range[1], len(elements)-1)
+                self.amplitude_map = {elements[0]: first_amplitude}
+                for element,amplitude in zip(elements[1:], other_amplitudes):
+                    self.amplitude_map[element] = amplitude
+        else:
+            if len(elements) != len(amplitude_map.keys()):
+                raise ValueError('Input amplitude map does not match elements in structure dictionary.')
+            else:
+                self.amplitude_map = amplitude_map
 
         img = atoms2image(self.atoms,
                           size=image_size,
                           sigma_map=sigma_map,
-                          amplitude_map=amplitude_map,
+                          amplitude_map=self.amplitude_map,
                           shift_range=shift_range,
                           )
 

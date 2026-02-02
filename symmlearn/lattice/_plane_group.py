@@ -242,6 +242,7 @@ class PlaneGroup(MixinShowPG):
                          metric_method: str = 'avg_nn',
                          seed: Optional[int] = None,
                          debug = False,
+                         verbose = True
         ) -> Atoms:
         rng = check_random_state(seed)
         atoms_unit_cell_ = self.generate_unit_cell_with_sampling(structure_dict=structure_dict,
@@ -252,11 +253,11 @@ class PlaneGroup(MixinShowPG):
                                                                 metric_method=metric_method,
                                                                 seed=rng)
         atoms_unit_cell, pg_num_new = reduce_unit_cell_atoms(atoms_unit_cell_)
-
-        if pg_num_new != self.pg_number:
-            print('Plane Group number has been updated from {} to {}'.format(self.pg_number, pg_num_new))
-        if not is_cell_same_size(atoms_unit_cell_.cell, atoms_unit_cell.cell):
-            print('Unit cell has been updated.')
+        if verbose:
+            if pg_num_new != self.pg_number:
+                print('Plane Group number has been updated from {} to {}'.format(self.pg_number, pg_num_new))
+            if not is_cell_same_size(atoms_unit_cell_.cell, atoms_unit_cell.cell):
+                print('Unit cell has been updated.')
 
         supercell = random_supercell(atoms_unit_cell.get_cell(), size)
         # print(supercell)

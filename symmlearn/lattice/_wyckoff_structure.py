@@ -2,7 +2,7 @@ import numpy as np
 from ._wyckoff_position import wyckoff_pos, WyckoffPosition
 from ._plane_group import PlaneGroup
 from ._layer_group import get_plane_group
-from ..utils._ramdom import check_random_state
+from ..utils._ramdom import check_random_generator
 
 
 class WyckoffStructure:
@@ -31,7 +31,7 @@ class WyckoffStructure:
         if len(self.structure_letters) < n:
             elements = elements[:len(self.structure_letters)]
             n = len(elements)
-        rng = check_random_state(seed)
+        rng = check_random_generator(seed)
 
         shuffled = np.array(self.structure_letters)
         rng.shuffle(shuffled)

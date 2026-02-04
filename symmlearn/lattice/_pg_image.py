@@ -12,7 +12,7 @@ from ._mixin_plane_group import transform_via_cell
 from ._mixin_plane_group import PG_PATTERNS
 from ._mixin_plane_group import MixinPGFeatures, MixinPGSymmetry
 from ._line_drawing import get_line
-from ..utils import check_random_state
+from ..utils import check_random_generator
 
 def _estimate_sigma(atoms, method='mean'):
     """
@@ -324,7 +324,7 @@ class PGLattice:
         self.amplitude_map = None
 
     def get_image(self, image_size, sigma_map=None, amplitude_map=None, amplitude_range = (0.3,0.7), seed=None, shift_range=0.0):
-        rng = check_random_state(seed)
+        rng = check_random_generator(seed)
         if sigma_map is None:
             sigma_min = self.sigma_ * (image_size) * 0.16
             sigma_max = self.sigma_ * (image_size) * 0.357

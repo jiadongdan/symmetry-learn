@@ -1,6 +1,6 @@
 import numpy as np
 
-def check_random_state(seed):
+def check_random_generator(seed):
     """Convert seed to np.random.Generator.
 
     Parameters

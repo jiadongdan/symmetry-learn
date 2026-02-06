@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from mtflearn.features import ZPs
-from mtflearn.features import nm2j
+from ._zps import ZPs
+from ._zmoments import nm2j
 
 
 def compute_kernels_weights(n_max, size):

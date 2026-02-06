@@ -16,7 +16,6 @@ setup(
           'ase',
           'scikit-image',
           'scikit-learn',
-          'pyxtal',
           'spglib',
       ],
   classifiers=[

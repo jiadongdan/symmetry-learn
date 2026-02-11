@@ -14,7 +14,7 @@ def check_random_generator(seed):
     """
     if seed is None:
         return np.random.default_rng()
-    if isinstance(seed, int):
+    if isinstance(seed, numbers.Integral):
         return np.random.default_rng(seed)
     if isinstance(seed, np.random.RandomState):
         # Use RandomState to generate a seed for Generator

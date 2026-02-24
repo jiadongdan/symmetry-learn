@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mtflearn.features import ZPs
+from ._zps import ZPs
 
 def check_array1d(input):
     """

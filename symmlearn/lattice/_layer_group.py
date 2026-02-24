@@ -1,4 +1,8 @@
-from spglib.spglib import get_symmetry_layerdataset
+try:
+    from spglib import get_symmetry_layerdataset  # spglib >= 2.7 (pybind11)
+except ImportError:
+    from spglib.spglib import get_symmetry_layerdataset  # spglib < 2.7 (ctypes)
+
 from ._utils import layer2plane
 
 def get_layer_group(atoms, aperiodic_axis=2, symprec=1e-5):

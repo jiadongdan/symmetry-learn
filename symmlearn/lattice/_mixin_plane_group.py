@@ -500,12 +500,13 @@ PG_PATTERNS: Dict[int, PlaneGroupPattern] = {
 
 
 class MixinShowPG:
-    def show(self, ax=None, seed=None):
+    def show(self, ax=None, seed=None, cell=None, rot_colors=None, mirror_color=None, glide_color=None):
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(7.2, 7.2))
 
-        # use the provided seed instead of hard-coding None
-        cell = generate_plane_group_cell(self.pg_number, seed=seed)
+        if cell is None:
+            # use the provided seed instead of hard-coding None
+            cell = generate_plane_group_cell(self.pg_number, seed=seed)
 
         try:
             pattern = PG_PATTERNS[self.pg_number]
@@ -522,14 +523,20 @@ class MixinShowPG:
         outline_pairs = transform_via_cell(pattern.outline_pairs, cell)
 
         # rotational centers
-        add_rotational_centers(ax, P2, n_fold=2, color='#2d3742', zorder=5, s=100)
-        add_rotational_centers(ax, P3, n_fold=3, color='#2d3742', zorder=5, s=100)
-        add_rotational_centers(ax, P4, n_fold=4, color='#2d3742', zorder=5, s=100)
-        add_rotational_centers(ax, P6, n_fold=6, color='#2d3742', zorder=5, s=100)
+        if rot_colors is None:
+            rot_colors = ['C0', 'C1', 'C2', 'C3', '#2d3742']
+        add_rotational_centers(ax, P2, n_fold=2, color=rot_colors[0], zorder=5, s=100)
+        add_rotational_centers(ax, P3, n_fold=3, color=rot_colors[1], zorder=5, s=100)
+        add_rotational_centers(ax, P4, n_fold=4, color=rot_colors[2], zorder=5, s=100)
+        add_rotational_centers(ax, P6, n_fold=6, color=rot_colors[3], zorder=5, s=100)
 
         # mirrors & glides
-        add_lines(ax, mirror_pairs, lw=2)
-        add_lines(ax, glide_pairs, lw=1, ls='--')
+        if mirror_color is None:
+            mirror_color = '#2d3742'
+        if glide_color is None:
+            glide_color = '#2d3742'
+        add_lines(ax, mirror_pairs, lw=2, color=mirror_color)
+        add_lines(ax, glide_pairs, lw=1, ls='--', color=glide_color)
         add_lines(ax, outline_pairs, lw=0.5, color='k')
 
 

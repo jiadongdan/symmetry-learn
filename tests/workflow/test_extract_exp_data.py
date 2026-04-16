@@ -1,3 +1,4 @@
+# CI smoke test
 import numpy as np
 import pytest
 from symmlearn.workflow._extract_features import extract_exp_data, ExtractionResult

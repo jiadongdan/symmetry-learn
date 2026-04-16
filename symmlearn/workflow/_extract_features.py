@@ -6,7 +6,7 @@ from ..sampling import stratified_sampling
 ExtractionResult = namedtuple('ExtractionResult', ['pts', 'patches', 'lbs'])
 
 
-def extract_features(img, patch_size, num_patches, lbs_img=None, seed=None):
+def extract_exp_data(img, patch_size, num_patches, lbs_img=None, seed=None):
     """
     Sample patches from an image and optionally assign dominant labels.
 

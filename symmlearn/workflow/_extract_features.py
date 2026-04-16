@@ -1,65 +1,74 @@
 import numpy as np
+from collections import namedtuple
 from ..sampling import stratified_sampling
 
 
-class ExperimentWorkflow:
+ExtractionResult = namedtuple('ExtractionResult', ['pts', 'patches', 'lbs'])
 
-    def __init__(self, img, patch_size, num_patches, lbs_img=None):
-        self.img = img
-        self.patch_size = patch_size
-        self.num_patches = num_patches
-        self.lbs_img = lbs_img
 
-        self.pts = None
-        self.patches = None
-        self.lbs = None
+def extract_features(img, patch_size, num_patches, lbs_img=None, seed=None):
+    """
+    Sample patches from an image and optionally assign dominant labels.
 
-    def process(self, seed=None):
-        # get the points, assign to self.pts
-        # extract patches, assign to self.patches
-        # if self.lbs_img is None, self.lbs is None;
-        # else self.lbs is not None, it is assigned as the dominant labels of the corresponding patch.
-        h, w = self.img.shape[:2]
-        half = self.patch_size // 2
+    Parameters
+    ----------
+    img : np.ndarray
+        Source image of shape (H, W) or (H, W, C).
+    patch_size : int
+        Side length of each square patch in pixels.
+    num_patches : int
+        Number of patches to extract.
+    lbs_img : np.ndarray, optional
+        Integer label image of shape (H, W). When provided, the dominant
+        (most-frequent) label within each patch region is returned.
+    seed : int, optional
+        Random seed for reproducibility.
 
-        # Generate candidate points via stratified sampling; pts are (x, y)
-        pts = stratified_sampling(
-            size=(h, w),
-            n_samples=self.num_patches,
-            seed=seed,
-        )
-        pts = np.round(pts).astype(np.int64)
+    Returns
+    -------
+    ExtractionResult
+        Named tuple with fields:
+        - pts     : np.ndarray, shape (n, 2), (x, y) coordinates
+        - patches : np.ndarray, shape (n, patch_size, patch_size[, C])
+        - lbs     : np.ndarray of shape (n,) with dominant labels, or None
+    """
+    h, w = img.shape[:2]
+    half = patch_size // 2
 
-        # Keep only points whose patch stays fully within image bounds
-        valid = (
-            (pts[:, 0] >= half) &
-            (pts[:, 0] + half < w) &
-            (pts[:, 1] >= half) &
-            (pts[:, 1] + half < h)
-        )
-        pts = pts[valid]
+    # Generate candidate points via stratified sampling; returned as (x, y)
+    pts = stratified_sampling(size=(h, w), n_samples=num_patches, seed=seed)
+    pts = np.round(pts).astype(np.int64)
 
-        # Randomly down-select to num_patches if we have more than needed
-        if len(pts) > self.num_patches:
-            rng = np.random.default_rng(seed)
-            idx = rng.choice(len(pts), size=self.num_patches, replace=False)
-            pts = pts[idx]
+    # Keep only points whose patch stays fully within image bounds
+    valid = (
+        (pts[:, 0] >= half) &
+        (pts[:, 0] + half < w) &
+        (pts[:, 1] >= half) &
+        (pts[:, 1] + half < h)
+    )
+    pts = pts[valid]
 
-        self.pts = pts
+    # Down-select to num_patches when sampling yields more than needed
+    if len(pts) > num_patches:
+        rng = np.random.default_rng(seed)
+        idx = rng.choice(len(pts), size=num_patches, replace=False)
+        pts = pts[idx]
 
-        # Extract patches centered at each point; pts are (x, y), arrays are [y, x]
-        self.patches = np.array([
-            self.img[y - half:y + half, x - half:x + half]
-            for x, y in pts
-        ])
+    # Extract patches; pts are (x, y), numpy arrays are indexed [y, x]
+    patches = np.array([
+        img[y - half:y + half, x - half:x + half]
+        for x, y in pts
+    ])
 
-        # Compute dominant label per patch when a label image is provided
-        if self.lbs_img is None:
-            self.lbs = None
-        else:
-            lbs = []
-            for x, y in pts:
-                region = self.lbs_img[y - half:y + half, x - half:x + half].ravel()
-                values, counts = np.unique(region, return_counts=True)
-                lbs.append(values[np.argmax(counts)])
-            self.lbs = np.array(lbs)
+    # Compute dominant label per patch, or return None
+    if lbs_img is None:
+        lbs = None
+    else:
+        lbs = []
+        for x, y in pts:
+            region = lbs_img[y - half:y + half, x - half:x + half].ravel()
+            values, counts = np.unique(region, return_counts=True)
+            lbs.append(values[np.argmax(counts)])
+        lbs = np.array(lbs)
+
+    return ExtractionResult(pts=pts, patches=patches, lbs=lbs)

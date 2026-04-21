@@ -477,6 +477,14 @@ class PGImage(MixinPGFeatures, MixinPGSymmetry):
                           p=2,
                           crop=False,
                           ):
+        """
+        Compute and store rotational and reflection symmetry maps for the image.
+
+        When ``return_angle`` is ``True``, this method also stores ``theta_map``
+        together with its derived ``sin_map`` and ``cos_map``. When
+        ``return_angle`` is ``False``, those angle-derived attributes are set to
+        ``None``.
+        """
         if patch_size is None:
             patch_size = self.patch_size
         # get the rotational and reflectional maps
@@ -498,14 +506,18 @@ class PGImage(MixinPGFeatures, MixinPGSymmetry):
             s = self.patch_size // 2
             self.rot_maps = rot_maps[:, s:-s, s:-s]
             self.ref_map = ref_map[s:-s, s:-s]
-            self.theta_map = theta_map[s:-s, s:-s]
+            self.theta_map = None if theta_map is None else theta_map[s:-s, s:-s]
         else:
             self.rot_maps = rot_maps
             self.ref_map = ref_map
             self.theta_map = theta_map
 
-        self.sin_map = np.sin(self.theta_map * 2)
-        self.cos_map = np.cos(self.theta_map * 2)
+        if self.theta_map is None:
+            self.sin_map = None
+            self.cos_map = None
+        else:
+            self.sin_map = np.sin(self.theta_map * 2)
+            self.cos_map = np.cos(self.theta_map * 2)
 
         self.has_symm_maps = True
 

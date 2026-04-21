@@ -8,7 +8,14 @@ from .reflection_symmetry import compute_kernels_weights
 from .reflection_symmetry import RefMap
 
 def normalize_array(data, vmin=-1., vmax=1.):
-    return (data - data.min())(vmax - vmin)/(data.max() - data.min())
+    data = np.asarray(data, dtype=float)
+    data_min = data.min()
+    data_max = data.max()
+
+    if data_max == data_min:
+        return np.full_like(data, fill_value=vmin, dtype=float)
+
+    return (data - data_min) * (vmax - vmin) / (data_max - data_min) + vmin
 
 def get_rot_maps(
         img: np.ndarray,

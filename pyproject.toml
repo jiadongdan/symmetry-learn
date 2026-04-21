@@ -21,6 +21,12 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest"]
+torch = ["torch"]
+
+[tool.pytest.ini_options]
+markers = [
+    "torch: tests that require torch and the optional torch workflow",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

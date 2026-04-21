@@ -1,6 +1,7 @@
 # symmetry-learn
 
-![Tests](https://github.com/jiadongdan/symmetry-learn/actions/workflows/tests.yml/badge.svg)
+[![CI](https://github.com/jiadongdan/symmetry-learn/actions/workflows/tests.yml/badge.svg)](https://github.com/jiadongdan/symmetry-learn/actions/workflows/tests.yml)
+[![Torch CI](https://github.com/jiadongdan/symmetry-learn/actions/workflows/torch-tests.yml/badge.svg)](https://github.com/jiadongdan/symmetry-learn/actions/workflows/torch-tests.yml)
 [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://github.com/jiadongdan/symmetry-learn/actions/workflows/tests.yml)
 
 A Python library for symmetry analysis of STEM (Scanning Transmission Electron Microscopy) images using deep learning. It detects rotational and reflectional symmetry in atomic-resolution images by combining crystallographic knowledge with convolutional neural networks.

@@ -1,5 +1,10 @@
+import importlib.util
+
 import numpy as np
 import pytest
+
+if importlib.util.find_spec("torch") is None:
+    pytest.skip("torch is not installed", allow_module_level=True)
 
 from symmlearn.lattice._pg_image import PGImage
 from symmlearn.maps._utils import get_ref_map, get_rot_maps

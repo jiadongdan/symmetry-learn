@@ -64,7 +64,7 @@ def compute_kernels_and_linear_weights(n_max, size, n_folds=(2, 3, 4, 6), m_unse
     zps = ZPs(n_max=n_max, size=size)
     # we unselect m = 0 and m = 1
     m_select = np.array([m for m in np.unique(np.abs(zps.m)) if m not in m_unselect])
-    inds = np.where(np.in1d(np.abs(zps.m), m_select))[0]
+    inds = np.where(np.isin(np.abs(zps.m), m_select))[0]
 
     kernels = zps.polynomials[inds]
     linear_weights = construct_rot_maps_matrix(n_folds, zps.m[inds])

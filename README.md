@@ -1,6 +1,10 @@
 # symmetry-learn
 
 ![Tests](https://github.com/jiadongdan/symmetry-learn/actions/workflows/tests.yml/badge.svg)
+![Python 3.9](https://img.shields.io/badge/python-3.9-blue.svg)
+![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)
 
 A Python library for symmetry analysis of STEM (Scanning Transmission Electron Microscopy) images using deep learning. It detects rotational and reflectional symmetry in atomic-resolution images by combining crystallographic knowledge with convolutional neural networks.
 
@@ -44,6 +48,7 @@ symmlearn/
 - Python >= 3.8
 - numpy
 - scipy
+- matplotlib
 - scikit-image
 - scikit-learn
 - [ase](https://wiki.fysik.dtu.dk/ase/) (Atomic Simulation Environment)

@@ -1,4 +1,4 @@
-name: Torch Tests
+name: Torch CI
 
 on:
   pull_request:

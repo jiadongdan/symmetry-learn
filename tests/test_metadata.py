@@ -17,4 +17,7 @@ def test_readme_python_requirement_matches_pyproject():
     readme_match = re.search(r"- Python\s+([^\n]+)", readme_text)
     assert readme_match is not None, "Python requirement not found in README.md"
 
-    assert readme_match.group(1).strip() == pyproject_match.group(1).strip()
+    readme_requirement = re.sub(r"\s+", "", readme_match.group(1).strip())
+    pyproject_requirement = re.sub(r"\s+", "", pyproject_match.group(1).strip())
+
+    assert readme_requirement == pyproject_requirement

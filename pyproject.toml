@@ -13,6 +13,7 @@ dependencies = [
     "numpy",
     "scipy",
     "ase",
+    "matplotlib",
     "scikit-image",
     "scikit-learn",
     "spglib",

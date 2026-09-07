@@ -22,6 +22,11 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest"]
 torch = ["torch"]
+provider = ["torch>=2.0"]
+inference = ["torch>=2.0"]
+
+[project.scripts]
+symmetry-learn-provider = "symmlearn.provider.worker:main"
 
 [tool.pytest.ini_options]
 markers = [

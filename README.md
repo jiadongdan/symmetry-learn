@@ -8,21 +8,9 @@ A Python library for symmetry analysis of STEM (Scanning Transmission Electron M
 
 ## Installation
 
-Maintainers: see [the release guide](https://github.com/jiadongdan/symmetry-learn/blob/main/docs/releasing.md)
-for building and publishing the library and model distributions.
-
-Install the released library with its bundled default model:
-
-```bash
-pip install symmetry-learn
-```
-
-The default `cnn_8ch_pg17` architecture and its `pg17-symmetry-v1` checkpoint
-are available immediately after installation. The checkpoint is delivered by
-the required `symmetry-learn-default-model` companion distribution.
-
-For source development, install the model asset package before the main
-editable package:
+`symmetry-learn` is not currently published on PyPI. Install it from the GitHub
+source checkout. Install the model asset package first, followed by the main
+library:
 
 ```bash
 git clone https://github.com/jiadongdan/symmetry-learn.git
@@ -31,11 +19,23 @@ pip install -e ./model_packages/symmetry_learn_default_model
 pip install -e .
 ```
 
+Both packages are installed in editable mode, so pulling source changes updates
+the active installation. Restart running Python processes after pulling. If a
+dependency or package configuration changes, run the installation commands
+again.
+
+The default `cnn_8ch_pg17` architecture and its `pg17-symmetry-v1` checkpoint
+are then available locally. The checkpoint is supplied by the
+`symmetry-learn-default-model` companion package inside this repository.
+
 To include test dependencies:
 
 ```bash
 pip install -e ".[test]"
 ```
+
+PyPI publishing is deferred. The retained [release guide](docs/releasing.md) is
+for future maintainers and does not describe the current installation channel.
 
 ## Package Structure
 

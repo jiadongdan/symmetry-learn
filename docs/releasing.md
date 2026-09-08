@@ -1,6 +1,12 @@
-# Publishing releases
+# Future PyPI publishing plan
 
-The repository produces two independently versioned PyPI distributions:
+> **Status:** PyPI publishing is currently deferred. Neither
+> `symmetry-learn` nor `symmetry-learn-default-model` should be assumed to be
+> available from PyPI. Do not push the release tags below until maintainers
+> explicitly decide to begin publication and complete the account setup.
+
+When publication is enabled, the repository will produce two independently
+versioned PyPI distributions:
 
 | Distribution | Source directory | Release tag |
 | --- | --- | --- |

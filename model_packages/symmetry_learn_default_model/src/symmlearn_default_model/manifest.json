@@ -1,0 +1,17 @@
+{
+  "schema_version": "symmetry-learn-weight-manifest-v1",
+  "distribution": "symmetry-learn-default-model",
+  "distribution_version": "1.0.0",
+  "weights": [
+    {
+      "model_id": "cnn_8ch_pg17",
+      "weight_id": "pg17-symmetry-v1",
+      "weight_version": "1.0.0",
+      "resource": "weights/cnn_8ch_pg17/pg17-symmetry-v1.pth",
+      "sha256": "5a151e7963b9065eba0baebdf4aa259fe0b9d5514af9a1a62589d7ce22e892ea",
+      "size_bytes": 68045532,
+      "default": true,
+      "bundled": true
+    }
+  ]
+}

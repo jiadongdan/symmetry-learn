@@ -12,18 +12,21 @@ requires-python = ">=3.9"
 dependencies = [
     "numpy",
     "scipy",
+    "torch>=2.0",
     "ase",
     "matplotlib",
     "scikit-image",
     "scikit-learn",
     "spglib",
+    "psutil",
+    "symmetry-learn-default-model==1.0.0",
 ]
 
 [project.optional-dependencies]
 test = ["pytest"]
-torch = ["torch"]
-provider = ["torch>=2.0"]
-inference = ["torch>=2.0"]
+torch = []
+provider = []
+inference = []
 
 [project.scripts]
 symmetry-learn-provider = "symmlearn.provider.worker:main"

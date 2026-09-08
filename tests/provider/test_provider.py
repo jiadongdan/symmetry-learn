@@ -41,12 +41,21 @@ def test_capabilities_define_one_versioned_model() -> None:
     assert [model["identifier"] for model in models] == ["cnn_8ch_pg17"]
     assert models[0]["input_channels"] == 8
     assert models[0]["classifier_patch_size"] == 64
+    assert models[0]["feature_pipeline"] == "eight_channel_v1"
+    assert models[0]["minimum_shots_per_class"] == 3
+    assert models[0]["recommended_shots_per_class"] == 5
+    assert models[0]["maximum_shots_per_class"] == 50
+    assert models[0]["default_weight"]["identifier"] == "pg17-symmetry-v1"
+    assert models[0]["default_weight"]["bundled"] is True
     assert capabilities["provider_version"] == "0.1.0"
 
 
 def test_checkpoint_compatible_model_exposes_expected_state_keys() -> None:
     pytest.importorskip("torch")
     model = build_registered_model("cnn_8ch_pg17")
+    assert model.__class__.__module__ == (
+        "symmlearn.models.cnn_8ch_pg17.architecture"
+    )
     state = model.state_dict()
     assert state["conv_blocks.0.0.weight"].shape == (32, 8, 3, 3)
     assert state["fc_blocks.0.0.weight"].shape == (512, 32768)

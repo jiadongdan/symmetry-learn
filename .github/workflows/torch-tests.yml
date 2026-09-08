@@ -4,16 +4,16 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "symmlearn/maps/**"
-      - "symmlearn/lattice/**"
-      - "tests/maps/**"
+      - "symmlearn/**"
+      - "model_packages/**"
+      - "tests/**"
       - "pyproject.toml"
   push:
     branches: [main]
     paths:
-      - "symmlearn/maps/**"
-      - "symmlearn/lattice/**"
-      - "tests/maps/**"
+      - "symmlearn/**"
+      - "model_packages/**"
+      - "tests/**"
       - "pyproject.toml"
   workflow_dispatch:
 
@@ -29,7 +29,9 @@ jobs:
           cache: "pip"
 
       - name: Install package and torch test dependencies
-        run: pip install -e ".[test,torch]"
+        run: |
+          pip install -e ./model_packages/symmetry_learn_default_model
+          pip install -e ".[test,torch]"
 
       - name: Run torch tests
         run: pytest tests/ -v -m "torch"

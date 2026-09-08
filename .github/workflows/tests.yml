@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - "symmlearn/**"
+      - "model_packages/**"
       - "tests/**"
       - "pyproject.toml"
   push:
     branches: [main]
     paths:
       - "symmlearn/**"
+      - "model_packages/**"
       - "tests/**"
       - "pyproject.toml"
   workflow_dispatch:
@@ -31,7 +33,9 @@ jobs:
           cache: "pip"
 
       - name: Install package and test dependencies
-        run: pip install -e ".[test]"
+        run: |
+          pip install -e ./model_packages/symmetry_learn_default_model
+          pip install -e ".[test]"
 
       - name: Run core tests
         run: pytest tests/ -v -m "not torch"

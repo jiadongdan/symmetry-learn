@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "symmetry-learn-default-model"
+version = "1.0.0"
+description = "Bundled default pretrained weights for symmetry-learn"
+authors = [{ name = "Jiadong Dan" }]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+symmlearn_default_model = ["manifest.json", "weights/*/*.pth"]

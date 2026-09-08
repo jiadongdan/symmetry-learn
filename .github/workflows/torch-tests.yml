@@ -8,6 +8,7 @@ on:
       - "model_packages/**"
       - "tests/**"
       - "pyproject.toml"
+      - ".github/workflows/torch-tests.yml"
   push:
     branches: [main]
     paths:
@@ -15,6 +16,7 @@ on:
       - "model_packages/**"
       - "tests/**"
       - "pyproject.toml"
+      - ".github/workflows/torch-tests.yml"
   workflow_dispatch:
 
 jobs:

@@ -1,14 +1,20 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "symmetry-learn-default-model"
 version = "1.0.0"
 description = "Bundled default pretrained weights for symmetry-learn"
+readme = "README.md"
 authors = [{ name = "Jiadong Dan" }]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
+
+[project.urls]
+Repository = "https://github.com/jiadongdan/symmetry-learn"
+Issues = "https://github.com/jiadongdan/symmetry-learn/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

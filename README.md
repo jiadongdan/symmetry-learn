@@ -8,6 +8,9 @@ A Python library for symmetry analysis of STEM (Scanning Transmission Electron M
 
 ## Installation
 
+Maintainers: see [the release guide](https://github.com/jiadongdan/symmetry-learn/blob/main/docs/releasing.md)
+for building and publishing the library and model distributions.
+
 Install the released library with its bundled default model:
 
 ```bash

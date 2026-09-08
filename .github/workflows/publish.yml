@@ -1,0 +1,121 @@
+name: Build and publish distributions
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "model-v*"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "LICENSE"
+      - "README.md"
+      - "model_packages/**"
+      - "scripts/check_release.py"
+      - "scripts/smoke_installed_release.py"
+      - ".github/workflows/publish.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: true
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install release tools
+        run: python -m pip install build twine
+      - name: Build both packages (wheel from source distribution)
+        run: |
+          python -m build --outdir dist/model model_packages/symmetry_learn_default_model
+          python -m build --outdir dist/library .
+      - name: Check metadata, archive contents, and checkpoint digest
+        run: |
+          python -m twine check --strict dist/model/* dist/library/*
+          python scripts/check_release.py
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/check_release.py --tag "$RELEASE_TAG"
+      - name: Install built wheels in a clean runtime
+        run: |
+          python -m venv "$RUNNER_TEMP/release-smoke"
+          "$RUNNER_TEMP/release-smoke/bin/python" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          "$RUNNER_TEMP/release-smoke/bin/python" -m pip install dist/model/*.whl dist/library/*.whl
+      - name: Verify installed imports and strict default-weight loading
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/release-smoke/bin/python" -I "$GITHUB_WORKSPACE/scripts/smoke_installed_release.py"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish-model:
+    if: startsWith(github.ref, 'refs/tags/model-v') && github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/symmetry-learn-default-model/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/model/
+
+  publish-library:
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/symmetry-learn/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: distributions
+          path: dist/
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Verify exact model release exists on PyPI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.request import urlopen
+          import json
+          import zipfile
+          from email.parser import BytesParser
+          with zipfile.ZipFile(next(Path('dist/model').glob('*.whl'))) as wheel:
+              name = next(n for n in wheel.namelist() if n.endswith('.dist-info/METADATA'))
+              version = BytesParser().parsebytes(wheel.read(name))['Version']
+          with urlopen(f'https://pypi.org/pypi/symmetry-learn-default-model/{version}/json') as response:
+              release = json.load(response)
+          if not any(f['filename'].endswith('.whl') and not f.get('yanked') for f in release['urls']):
+              raise RuntimeError('Publish the required model wheel before the library')
+          PY
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/library/

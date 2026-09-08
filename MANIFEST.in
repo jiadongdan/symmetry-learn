@@ -1,0 +1,6 @@
+include LICENSE README.md
+prune model_packages
+prune notebooks
+prune .github
+prune scripts
+prune docs

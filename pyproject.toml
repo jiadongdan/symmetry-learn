@@ -1,13 +1,15 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "symmetry-learn"
 version = "0.1.0"
 description = "Deep learning for STEM images by symmetry"
+readme = "README.md"
 authors = [{ name = "Jiadong Dan" }]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
 dependencies = [
     "numpy",
@@ -21,6 +23,11 @@ dependencies = [
     "psutil",
     "symmetry-learn-default-model==1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/jiadongdan/symmetry-learn"
+Repository = "https://github.com/jiadongdan/symmetry-learn"
+Issues = "https://github.com/jiadongdan/symmetry-learn/issues"
 
 [project.optional-dependencies]
 test = ["pytest"]

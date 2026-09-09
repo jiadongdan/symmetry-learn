@@ -94,12 +94,13 @@ def compute_features(
     resolved_options = validate_model_options(model, options)
     resolved_options["device"] = device
     resolved_device = resolve_device(device)
-    return compute_registered_features(
+    features, record = compute_registered_features(
         specification.feature_pipeline,
         values,
         resolved_options,
         device=resolved_device,
     )
+    return features, {"identifier": specification.feature_pipeline, **record}
 
 
 def few_shot_analyze(
@@ -113,6 +114,8 @@ def few_shot_analyze(
     weight: str | None = None,
     options: dict[str, Any] | None = None,
     model: str = MODEL_IDENTIFIER,
+    precomputed_features: np.ndarray | None = None,
+    precomputed_feature_record: dict[str, Any] | None = None,
 ) -> ProviderResult:
     """Fine-tune adapters and return dense local-class predictions."""
     result = run_few_shot(
@@ -125,6 +128,8 @@ def few_shot_analyze(
         checkpoint_sha256=checkpoint_sha256,
         weight_identifier=weight,
         options=options,
+        precomputed_features=precomputed_features,
+        precomputed_feature_record=precomputed_feature_record,
     )
     return _provider_result(result)
 

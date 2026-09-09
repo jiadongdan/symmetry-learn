@@ -20,7 +20,9 @@ from symmlearn.provider.worker import (
     _load_job,
     _validate_support,
     _validated_options,
+    run_features_worker,
 )
+from symmlearn.workflows.few_shot import _validated_precomputed_features
 
 
 def _unit_image(size: int = 64) -> np.ndarray:
@@ -36,6 +38,8 @@ def test_capabilities_define_one_versioned_model() -> None:
     models = model_capabilities()
     assert capabilities["contract_version"] == "symmetry-learn-provider-v1"
     assert capabilities["provider"] == "symmetry-learn"
+    assert "compute_features" in capabilities["operations"]
+    assert "few_shot_analyze_precomputed_features" in capabilities["operations"]
     assert PROVIDER_CONTRACT_VERSION == "symmetry-learn-provider-v1"
     assert WORKER_SCHEMA_VERSION == "scientific-symmetry-worker-v1"
     assert [model["identifier"] for model in models] == ["cnn_8ch_pg17"]
@@ -111,3 +115,61 @@ def test_worker_rejects_an_incompatible_schema(tmp_path: Path) -> None:
         _load_job(path)
     with pytest.raises(ValueError, match="Unsupported provider options"):
         _validated_options({"unknown": 1})
+
+
+def test_feature_worker_persists_reusable_feature_contract(tmp_path: Path) -> None:
+    pytest.importorskip("torch")
+    input_path = tmp_path / "input.npy"
+    output_path = tmp_path / "features.npz"
+    record_path = tmp_path / "features.json"
+    job_path = tmp_path / "job.json"
+    np.save(input_path, _unit_image())
+    job_path.write_text(
+        json.dumps(
+            {
+                "schema_version": WORKER_SCHEMA_VERSION,
+                "input_path": str(input_path),
+                "output_path": str(output_path),
+                "record_path": str(record_path),
+                "method": {"identifier": "cnn_8ch_pg17"},
+                "options": {
+                    "n_max": 4,
+                    "symmetry_patch_size": 5,
+                    "device": "cpu",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_features_worker(job_path)
+
+    assert result["provider_contract_version"] == PROVIDER_CONTRACT_VERSION
+    assert result["features"]["identifier"] == "eight_channel_v1"
+    with np.load(output_path, allow_pickle=False) as archive:
+        assert archive["features"].shape == (8, 64, 64)
+        assert archive["channel_names"].shape == (8,)
+    persisted = json.loads(record_path.read_text(encoding="utf-8"))
+    assert persisted["features"]["symmetry_patch_size"] == 5
+
+
+def test_precomputed_features_reject_changed_feature_options() -> None:
+    pytest.importorskip("torch")
+    image = _unit_image()
+    options = _validated_options(
+        {"n_max": 4, "symmetry_patch_size": 5, "device": "cpu"}
+    )
+    features, record = compute_features(image, options=options, device="cpu")
+    changed = dict(options)
+    changed["symmetry_patch_size"] = 7
+
+    with pytest.raises(ValueError, match="symmetry_patch_size"):
+        _validated_precomputed_features(
+            features,
+            record,
+            image_shape=image.shape,
+            feature_pipeline="eight_channel_v1",
+            feature_channels=tuple(record["channel_names"]),
+            options=changed,
+            device="cpu",
+        )

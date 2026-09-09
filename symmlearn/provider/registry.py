@@ -16,6 +16,12 @@ def provider_capabilities() -> dict[str, Any]:
         "contract_version": PROVIDER_CONTRACT_VERSION,
         "provider": "symmetry-learn",
         "provider_version": __version__,
+        "operations": [
+            "compute_features",
+            "few_shot_analyze",
+            "few_shot_analyze_precomputed_features",
+            "probe_model",
+        ],
         "models": model_capabilities(),
     }
 

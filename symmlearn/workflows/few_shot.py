@@ -12,7 +12,10 @@ from typing import Any
 import numpy as np
 
 from symmlearn.features import compute_registered_features
-from symmlearn.features.eight_channel.validation import validate_unit_image
+from symmlearn.features.eight_channel.validation import (
+    validate_feature_array,
+    validate_unit_image,
+)
 from symmlearn.finetuning.adapters import trainable_state_dict
 from symmlearn.finetuning.engine import set_deterministic_seed
 from symmlearn.inference import predict_dense
@@ -39,6 +42,51 @@ class FewShotResult:
     record: dict[str, Any]
 
 
+_FEATURE_OPTION_NAMES = (
+    "n_max",
+    "symmetry_patch_size",
+    "rotation_folds",
+    "reflection_p",
+    "normalize_rotation_maps",
+)
+
+
+def _validated_precomputed_features(
+    features: np.ndarray,
+    feature_record: dict[str, Any] | None,
+    *,
+    image_shape: tuple[int, int],
+    feature_pipeline: str,
+    feature_channels: tuple[str, ...],
+    options: dict[str, Any],
+    device: str,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Validate cached features against the complete feature-computation contract."""
+    values = np.asarray(features, dtype=np.float32)
+    validate_feature_array(values, image_shape)
+    record = dict(feature_record or {})
+    if record.get("identifier") != feature_pipeline:
+        raise ValueError("Precomputed features use a different feature pipeline.")
+    if list(record.get("channel_names", [])) != list(feature_channels):
+        raise ValueError("Precomputed feature channels do not match the selected model.")
+    if list(record.get("shape", [])) != list(values.shape):
+        raise ValueError("Precomputed feature metadata has an incompatible shape.")
+    for name in _FEATURE_OPTION_NAMES:
+        recorded = record.get(name)
+        expected = options[name]
+        if name == "rotation_folds":
+            recorded = list(recorded or [])
+            expected = list(expected)
+        if recorded != expected:
+            raise ValueError(
+                f"Precomputed features do not match the requested {name} option."
+            )
+    if record.get("device") != device:
+        raise ValueError("Precomputed features were calculated on a different device.")
+    record["cache_reused"] = True
+    return values, record
+
+
 def run_few_shot(
     image: np.ndarray,
     *,
@@ -50,6 +98,8 @@ def run_few_shot(
     checkpoint_sha256: str | None = None,
     weight_identifier: str | None = None,
     options: dict[str, Any] | None = None,
+    precomputed_features: np.ndarray | None = None,
+    precomputed_feature_record: dict[str, Any] | None = None,
 ) -> FewShotResult:
     """Fine-tune the selected model and produce dense local-class predictions."""
     import torch
@@ -70,12 +120,32 @@ def run_few_shot(
     )
     device = resolve_device(resolved_options["device"])
     started = perf_counter()
-    features, feature_record = compute_registered_features(
-        specification.feature_pipeline,
-        values,
-        resolved_options,
-        device=device,
-    )
+    if precomputed_features is None:
+        if precomputed_feature_record is not None:
+            raise ValueError(
+                "A precomputed feature record requires precomputed feature values."
+            )
+        features, feature_record = compute_registered_features(
+            specification.feature_pipeline,
+            values,
+            resolved_options,
+            device=device,
+        )
+        feature_record = {
+            "identifier": specification.feature_pipeline,
+            **feature_record,
+            "cache_reused": False,
+        }
+    else:
+        features, feature_record = _validated_precomputed_features(
+            precomputed_features,
+            precomputed_feature_record,
+            image_shape=values.shape,
+            feature_pipeline=specification.feature_pipeline,
+            feature_channels=specification.feature_channels,
+            options=resolved_options,
+            device=device,
+        )
     support_patches = extract_patches(
         features,
         coordinates,

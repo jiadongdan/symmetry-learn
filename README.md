@@ -46,7 +46,7 @@ symmlearn/
 ├── patches/       Support validation, patch extraction, and dense coordinate grids
 ├── finetuning/    Reusable adapters, optimization engine, and adapter artifacts
 ├── inference/     Batched probability prediction and dense output maps
-├── workflows/     Authoritative few-shot workflows composed from the public modules
+├── workflows/     Authoritative few-shot and saved-model prediction workflows
 ├── provider/      Thin versioned Python and subprocess interfaces for orchestrators
 ├── lattice/       Plane groups, Wyckoff positions, and image simulation
 ├── maps/          Rotational and reflectional symmetry maps
@@ -110,6 +110,11 @@ result = few_shot_analyze(
 )
 ```
 
+The returned Provider result includes both a compact `adapter_checkpoint` and a
+`fine_tuned_model_state`. The latter contains the complete post-fine-tuning
+state dictionary plus the architecture, adapter, class, and base-checkpoint
+identity needed by an external harness to build a portable prediction package.
+
 Passing both reusable-feature arguments avoids computing the eight symmetry
 channels again during fine-tuning. The Provider validates the cached array and
 record against the image shape, feature pipeline, channel order, feature
@@ -138,9 +143,49 @@ result = few_shot_analyze(
 
 External orchestrators can use the versioned worker contract through
 `python -m symmlearn.provider.worker --capabilities`, `--probe JOB.json`,
-`--features JOB.json`, or `--job JOB.json`. A feature job writes a reusable NPZ
-array and its JSON provenance record. An analysis job can reuse those artifacts
-by supplying both `features_path` and `features_record_path`; supplying neither
-computes fresh features. Existing explicit-checkpoint jobs remain compatible. A
-job that omits `checkpoint_path` uses the installed default weight. Optional
-model weights are never downloaded silently.
+`--features JOB.json`, `--predict JOB.json`, or `--job JOB.json`. A feature job
+writes a reusable NPZ array and its JSON provenance record. An analysis job can
+reuse those artifacts by supplying both `features_path` and
+`features_record_path`; supplying neither computes fresh features. Existing
+explicit-checkpoint jobs remain compatible. A job that omits `checkpoint_path`
+uses the installed default weight. Optional model weights are never downloaded
+silently.
+
+## Saved-Model Prediction
+
+The prediction mode restores a previously fine-tuned model and applies it to new
+images. It never fine-tunes, and it never accepts a serialized `nn.Module`.
+
+```python
+from symmlearn.workflows import predict_with_saved_model
+
+result = predict_with_saved_model(
+    image,
+    model_state_path="model_state.pt",
+    feature_options={"n_max": 20, "symmetry_patch_size": 51},
+    prediction_options={"device": "cuda", "stride": 4, "batch_size": 512},
+    expected_model={"identifier": "cnn_8ch_pg17", "task_classes": 2},
+)
+```
+
+Restoration is registry-backed. The Provider rebuilds the registered
+architecture, inserts adapters with the recorded bottleneck, replaces the
+classifier head, and loads the complete state dictionary with `strict=True`.
+Missing keys, unexpected keys, and shape mismatches are hard errors.
+
+Only `device`, `stride`, and `batch_size` are runtime overrides. Every
+feature-producing option comes from the saved model package, so prediction
+reproduces the exact feature contract used during fine-tuning.
+
+Batch prediction submits several images in one worker job so the model is loaded
+once:
+
+```bash
+python -m symmlearn.provider.worker --predict JOB.json
+```
+
+The job declares `model_state_path`, `expected_model`, `feature_options`,
+`prediction_options`, and one entry per image in `items`. The Provider stops the
+whole batch for model-state or contract failures, and records an image-specific
+failure while continuing with the remaining images when one image cannot be
+processed.

@@ -22,6 +22,7 @@ class _ModelRegistration:
     builder: str
     option_validator: str
     fine_tuner: str
+    restorer: str
 
 
 _REGISTRATIONS = {
@@ -32,6 +33,7 @@ _REGISTRATIONS = {
             "symmlearn.models.cnn_8ch_pg17.specification:validate_options"
         ),
         fine_tuner="symmlearn.models.cnn_8ch_pg17.fine_tuning:fine_tune",
+        restorer="symmlearn.models.cnn_8ch_pg17.restoration:restore_fine_tuned",
     ),
 }
 
@@ -117,6 +119,33 @@ def fine_tune_registered_model(
         device=device,
         progress_callback=progress_callback,
     )
+
+
+def restore_fine_tuned_registered_model(
+    identifier: str,
+    model_state: dict[str, Any],
+    *,
+    device: str,
+) -> tuple[Any, dict[str, Any]]:
+    """Rebuild one registered model in its saved fine-tuned form."""
+    from symmlearn.finetuning.artifacts import validate_fine_tuned_model_state
+
+    registration = _get_registration(identifier)
+    validate_fine_tuned_model_state(model_state)
+    if model_state.get("model_identifier") != identifier:
+        raise ValueError(
+            f"The saved model state targets {model_state.get('model_identifier')!r}, "
+            f"not the selected model {identifier!r}."
+        )
+    restorer = _load_callable(registration.restorer)
+    model, record = restorer(model_state, device=device)
+    return model, {
+        "identifier": identifier,
+        "state_schema_version": model_state["schema_version"],
+        "resolved_device": device,
+        "base_checkpoint_sha256": model_state.get("base_checkpoint_sha256"),
+        **record,
+    }
 
 
 def model_capabilities() -> list[dict[str, Any]]:

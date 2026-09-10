@@ -23,7 +23,7 @@ from symmlearn.models.weights import (
     load_pretrained_checkpoint,
     resolve_model_weight,
 )
-from symmlearn.workflows import run_few_shot
+from symmlearn.workflows import predict_with_saved_model, run_few_shot
 
 from .contracts import (
     ADAPTER_SCHEMA_VERSION,
@@ -39,6 +39,7 @@ class ProviderResult:
 
     arrays: dict[str, np.ndarray]
     adapter_checkpoint: dict[str, Any]
+    fine_tuned_model_state: dict[str, Any]
     record: dict[str, Any]
 
     @property
@@ -55,6 +56,14 @@ class ProviderResult:
     def entropy_grid(self) -> np.ndarray:
         """Return the dense predictive-entropy grid."""
         return self.arrays["entropy_grid"]
+
+
+@dataclass(frozen=True)
+class ProviderPredictionResult:
+    """In-memory dense prediction from one saved fine-tuned model."""
+
+    arrays: dict[str, np.ndarray]
+    record: dict[str, Any]
 
 
 def _provider_result(result: Any) -> ProviderResult:
@@ -78,6 +87,7 @@ def _provider_result(result: Any) -> ProviderResult:
     return ProviderResult(
         arrays=result.arrays,
         adapter_checkpoint=adapter_checkpoint,
+        fine_tuned_model_state=result.fine_tuned_model_state,
         record=record,
     )
 
@@ -135,6 +145,42 @@ def few_shot_analyze(
         progress_callback=progress_callback,
     )
     return _provider_result(result)
+
+
+def predict_with_fine_tuned_model(
+    image: np.ndarray,
+    *,
+    model_state_path: str | Path,
+    feature_options: dict[str, Any],
+    prediction_options: dict[str, Any] | None = None,
+    expected_model: dict[str, Any] | None = None,
+    prediction_defaults: dict[str, Any] | None = None,
+    precomputed_features: np.ndarray | None = None,
+    precomputed_feature_record: dict[str, Any] | None = None,
+    progress_callback: Callable[[str, int, int], None] | None = None,
+) -> ProviderPredictionResult:
+    """Restore one saved fine-tuned model and predict one normalized image."""
+    result = predict_with_saved_model(
+        np.asarray(image, dtype=np.float32),
+        model_state_path=model_state_path,
+        feature_options=dict(feature_options),
+        prediction_options=prediction_options,
+        expected_model=expected_model,
+        prediction_defaults=prediction_defaults,
+        precomputed_features=precomputed_features,
+        precomputed_feature_record=precomputed_feature_record,
+        progress_callback=progress_callback,
+    )
+    return ProviderPredictionResult(
+        arrays=result.arrays,
+        record={
+            "schema_version": WORKER_SCHEMA_VERSION,
+            "provider_contract_version": PROVIDER_CONTRACT_VERSION,
+            "provider": "symmetry-learn",
+            "provider_version": __version__,
+            **result.record,
+        },
+    )
 
 
 def probe_model(

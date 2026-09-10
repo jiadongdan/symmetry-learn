@@ -25,14 +25,15 @@ from symmlearn.patches import (
 )
 
 from .api import compute_features as compute_provider_features
-from .api import few_shot_analyze, probe_model
+from .api import few_shot_analyze, probe_model, predict_with_fine_tuned_model
 from .contracts import (
     MODEL_IDENTIFIER,
     PROVIDER_CONTRACT_VERSION,
     WORKER_SCHEMA_VERSION,
 )
 from .registry import provider_capabilities
-from .serialization import persist_provider_result
+from .serialization import persist_prediction_result, persist_provider_result
+from symmlearn.workflows.saved_model_prediction import SavedModelPredictor
 
 
 def _load_job(path: Path) -> dict[str, Any]:
@@ -255,6 +256,7 @@ def run_worker(job_path: Path) -> dict[str, Any]:
         result,
         output_path=job["output_path"],
         adapter_path=job["adapter_path"],
+        model_state_path=job.get("model_state_path"),
         record_path=job["record_path"],
     )
 
@@ -295,6 +297,133 @@ def run_features_worker(job_path: Path) -> dict[str, Any]:
     return record
 
 
+def _load_prediction_items(job: dict[str, Any]) -> list[dict[str, Any]]:
+    """Validate the batch items of one saved-model prediction job."""
+    raw_items = job.get("items")
+    if not isinstance(raw_items, list) or not raw_items:
+        raise ValueError("A prediction job requires at least one item.")
+    items = []
+    seen: set[str] = set()
+    for index, raw in enumerate(raw_items):
+        if not isinstance(raw, dict):
+            raise TypeError("Each prediction item must be an object.")
+        for key in ("item_id", "input_path", "output_path", "record_path"):
+            if not str(raw.get(key, "")).strip():
+                raise ValueError(f"Prediction item {index} is missing {key!r}.")
+        item_id = str(raw["item_id"])
+        if item_id in seen:
+            raise ValueError(f"Duplicate prediction item identifier: {item_id!r}")
+        seen.add(item_id)
+        items.append(
+            {
+                "item_id": item_id,
+                "input_path": Path(str(raw["input_path"])),
+                "output_path": Path(str(raw["output_path"])),
+                "record_path": Path(str(raw["record_path"])),
+            }
+        )
+    return items
+
+
+def run_prediction_worker(job_path: Path) -> dict[str, Any]:
+    """Predict one batch with one saved model that is restored exactly once."""
+    job = _load_job(job_path)
+    model_state_path = job.get("model_state_path")
+    if not str(model_state_path or "").strip():
+        raise ValueError("A prediction job requires a model_state_path.")
+    items = _load_prediction_items(job)
+    progress_path = (
+        None if job.get("progress_path") is None else Path(job["progress_path"])
+    )
+    report_progress = (
+        None if progress_path is None else _progress_reporter(progress_path)
+    )
+    total_items = len(items)
+
+    # Model-level failures must stop the whole batch, so restoration happens
+    # before any image is processed.
+    predictor = SavedModelPredictor.from_state_path(
+        model_state_path,
+        feature_options=dict(job.get("feature_options", {})),
+        prediction_options=dict(job.get("prediction_options", {})),
+        expected_model=dict(job.get("expected_model", {}) or {}),
+        prediction_defaults=dict(job.get("prediction_defaults", {}) or {}),
+    )
+
+    results: list[dict[str, Any]] = []
+    for index, item in enumerate(items, start=1):
+        if report_progress is not None:
+            report_progress("item", index - 1, total_items)
+        try:
+            result = predictor.predict(
+                _load_input(item["input_path"]),
+                progress_callback=(
+                    None
+                    if report_progress is None
+                    else lambda phase, current, total: report_progress(
+                        f"item {index} of {total_items}: {phase}", current, total
+                    )
+                ),
+            )
+        except Exception as error:
+            # An image-specific failure is recorded and the batch continues.
+            results.append(
+                {
+                    "item_id": item["item_id"],
+                    "status": "failed",
+                    "phase": "prediction",
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                }
+            )
+            continue
+        persist_prediction_result(
+            result,
+            output_path=item["output_path"],
+            record_path=item["record_path"],
+        )
+        results.append(
+            {
+                "item_id": item["item_id"],
+                "status": "completed",
+                "identifier": result.record["identifier"],
+                "prediction": result.record["prediction"],
+                "output_path": str(item["output_path"]),
+                "record_path": str(item["record_path"]),
+            }
+        )
+    if report_progress is not None:
+        report_progress("item", total_items, total_items)
+    return {
+        "schema_version": WORKER_SCHEMA_VERSION,
+        "provider_contract_version": PROVIDER_CONTRACT_VERSION,
+        "provider": "symmetry-learn",
+        "provider_version": __version__,
+        "identifier": predictor.identifier,
+        "model": predictor.restoration_record,
+        "options": {
+            "features": {
+                name: predictor.feature_options[name]
+                for name in (
+                    "n_max",
+                    "symmetry_patch_size",
+                    "rotation_folds",
+                    "reflection_p",
+                    "normalize_rotation_maps",
+                )
+            },
+            "prediction": {
+                name: predictor.prediction_options[name]
+                for name in ("device", "stride", "batch_size")
+            },
+        },
+        "item_count": total_items,
+        "completed_count": sum(1 for entry in results if entry["status"] == "completed"),
+        "failed_count": sum(1 for entry in results if entry["status"] == "failed"),
+        "items": results,
+    }
+
+
 def probe_worker(job_path: Path) -> dict[str, Any]:
     """Validate the model, checkpoint, and requested device without inference."""
     job = _load_job(job_path)
@@ -314,12 +443,15 @@ def main() -> None:
     group.add_argument("--job", type=Path)
     group.add_argument("--features", type=Path)
     group.add_argument("--probe", type=Path)
+    group.add_argument("--predict", type=Path)
     group.add_argument("--capabilities", action="store_true")
     arguments = parser.parse_args()
     if arguments.capabilities:
         result = provider_capabilities()
     elif arguments.features is not None:
         result = run_features_worker(arguments.features.resolve())
+    elif arguments.predict is not None:
+        result = run_prediction_worker(arguments.predict.resolve())
     elif arguments.job is not None:
         result = run_worker(arguments.job.resolve())
     else:

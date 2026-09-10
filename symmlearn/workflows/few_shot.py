@@ -18,6 +18,7 @@ from symmlearn.features.eight_channel.validation import (
     validate_unit_image,
 )
 from symmlearn.finetuning.adapters import trainable_state_dict
+from symmlearn.finetuning.artifacts import FINE_TUNED_MODEL_STATE_SCHEMA_VERSION
 from symmlearn.finetuning.engine import set_deterministic_seed
 from symmlearn.inference import predict_dense
 from symmlearn.models.base import resolve_device
@@ -40,6 +41,7 @@ class FewShotResult:
 
     arrays: dict[str, np.ndarray]
     adapter_checkpoint: dict[str, Any]
+    fine_tuned_model_state: dict[str, Any]
     record: dict[str, Any]
 
 
@@ -227,6 +229,19 @@ def run_few_shot(
         },
         "trainable_state_dict": trainable_state_dict(model),
     }
+    fine_tuned_model_state = {
+        "schema_version": FINE_TUNED_MODEL_STATE_SCHEMA_VERSION,
+        "model_identifier": model_identifier,
+        "adapter_bottleneck": resolved_options["adapter_bottleneck"],
+        "task_classes": len(names),
+        "class_names": names,
+        "base_checkpoint_sha256": checkpoint_record["sha256"],
+        "base_weight_identifier": checkpoint_record["weight_identifier"],
+        "state_dict": {
+            name: value.detach().cpu().clone()
+            for name, value in model.state_dict().items()
+        },
+    }
     runtime = {
         "python_version": sys.version.split()[0],
         "platform": platform.platform(),
@@ -282,5 +297,6 @@ def run_few_shot(
     return FewShotResult(
         arrays=arrays,
         adapter_checkpoint=adapter_checkpoint,
+        fine_tuned_model_state=fine_tuned_model_state,
         record=record,
     )

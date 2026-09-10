@@ -24,6 +24,11 @@ from symmlearn.provider.worker import (
     run_features_worker,
 )
 from symmlearn.workflows.few_shot import _validated_precomputed_features
+from symmlearn.finetuning.artifacts import (
+    FINE_TUNED_MODEL_STATE_SCHEMA_VERSION,
+    load_fine_tuned_model_state,
+    save_fine_tuned_model_state,
+)
 
 
 def _unit_image(size: int = 64) -> np.ndarray:
@@ -53,6 +58,7 @@ def test_capabilities_define_one_versioned_model() -> None:
     assert models[0]["default_weight"]["identifier"] == "pg17-symmetry-v1"
     assert models[0]["default_weight"]["bundled"] is True
     assert capabilities["provider_version"] == "0.1.0"
+    assert capabilities["runtime"]["torch_version"]
 
 
 def test_checkpoint_compatible_model_exposes_expected_state_keys() -> None:
@@ -72,6 +78,28 @@ def test_checkpoint_compatible_model_exposes_expected_state_keys() -> None:
     trainable = trainable_state_dict(adapted)
     assert len(trainable) == 12
     assert all(".adapter." in name or name.startswith("classifier.") for name in trainable)
+
+
+def test_complete_fine_tuned_model_state_round_trips(tmp_path: Path) -> None:
+    torch = pytest.importorskip("torch")
+    path = tmp_path / "model_state.pt"
+    payload = {
+        "schema_version": FINE_TUNED_MODEL_STATE_SCHEMA_VERSION,
+        "model_identifier": "cnn_8ch_pg17",
+        "adapter_bottleneck": 4,
+        "task_classes": 2,
+        "class_names": ["Phase A", "Phase B"],
+        "state_dict": {"classifier.weight": torch.ones((2, 3))},
+    }
+
+    save_fine_tuned_model_state(path, payload)
+    restored = load_fine_tuned_model_state(path)
+
+    assert restored["model_identifier"] == "cnn_8ch_pg17"
+    assert restored["class_names"] == ["Phase A", "Phase B"]
+    assert torch.equal(
+        restored["state_dict"]["classifier.weight"], torch.ones((2, 3))
+    )
 
 
 def test_support_coordinates_and_dense_grid_use_xy_convention() -> None:
@@ -101,7 +129,7 @@ def test_direct_feature_api_builds_eight_channels() -> None:
     pytest.importorskip("torch")
     features, record = compute_features(
         _unit_image(),
-        options={"n_max": 4, "symmetry_patch_size": 5},
+        options={"n_max": 2, "symmetry_patch_size": 5},
         device="cpu",
     )
     assert features.shape == (8, 64, 64)
@@ -150,7 +178,7 @@ def test_feature_worker_persists_reusable_feature_contract(tmp_path: Path) -> No
                 "record_path": str(record_path),
                 "method": {"identifier": "cnn_8ch_pg17"},
                 "options": {
-                    "n_max": 4,
+                    "n_max": 2,
                     "symmetry_patch_size": 5,
                     "device": "cpu",
                 },
@@ -174,7 +202,7 @@ def test_precomputed_features_reject_changed_feature_options() -> None:
     pytest.importorskip("torch")
     image = _unit_image()
     options = _validated_options(
-        {"n_max": 4, "symmetry_patch_size": 5, "device": "cpu"}
+        {"n_max": 2, "symmetry_patch_size": 5, "device": "cpu"}
     )
     features, record = compute_features(image, options=options, device="cpu")
     changed = dict(options)

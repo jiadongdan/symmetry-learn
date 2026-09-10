@@ -23,6 +23,11 @@ from symmlearn.models.weights import (
     load_pretrained_checkpoint,
     resolve_model_weight,
 )
+from symmlearn.traditional_ml import (
+    IMAGE_PLUS_SYMMETRY_MAPS_MODE,
+    TraditionalMLOptions,
+    analyze_traditional_ml,
+)
 from symmlearn.workflows import predict_with_saved_model, run_few_shot
 
 from .contracts import (
@@ -64,6 +69,34 @@ class ProviderPredictionResult:
 
     arrays: dict[str, np.ndarray]
     record: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ProviderTraditionalMLResult:
+    """In-memory traditional ML prediction from one conventional classifier.
+
+    No estimator object is part of the result: the first version intentionally
+    fits and predicts inside a single job so that no pickle or joblib artifact
+    is ever written or read.
+    """
+
+    arrays: dict[str, np.ndarray]
+    record: dict[str, Any]
+
+    @property
+    def prediction_grid(self) -> np.ndarray:
+        """Return the dense predicted-class grid."""
+        return self.arrays["prediction_grid"]
+
+    @property
+    def confidence_grid(self) -> np.ndarray:
+        """Return the dense maximum-probability grid."""
+        return self.arrays["confidence_grid"]
+
+    @property
+    def entropy_grid(self) -> np.ndarray:
+        """Return the dense predictive-entropy grid."""
+        return self.arrays["entropy_grid"]
 
 
 def _provider_result(result: Any) -> ProviderResult:
@@ -237,3 +270,54 @@ def probe_model(
             "checkpoint": checkpoint,
         },
     }
+
+
+def traditional_ml_analyze(
+    features: np.ndarray,
+    *,
+    coordinates_xy: np.ndarray,
+    labels: np.ndarray,
+    class_names: list[str],
+    classifier: str,
+    parameters: dict[str, Any] | None = None,
+    feature_mode: str = IMAGE_PLUS_SYMMETRY_MAPS_MODE,
+    options: TraditionalMLOptions | dict[str, Any] | None = None,
+    feature_record: dict[str, Any] | None = None,
+    input_shape: tuple[int, int] | None = None,
+    input_sha256: str | None = None,
+    progress_callback: Callable[[str, int, int], None] | None = None,
+) -> ProviderTraditionalMLResult:
+    """Train one conventional classifier and densely predict one image.
+
+    This entry point accepts in-memory arrays only. It never requires a model
+    identifier, weight, checkpoint, model-state path, or neural-inference
+    device. Map computation device remains relevant to the earlier
+    ``compute_features`` operation, not to scikit-learn training.
+    """
+    resolved_options = options
+    if resolved_options is None:
+        resolved_options = TraditionalMLOptions()
+    elif isinstance(resolved_options, dict):
+        resolved_options = TraditionalMLOptions.from_mapping(resolved_options)
+    result = analyze_traditional_ml(
+        np.asarray(features, dtype=np.float32),
+        coordinates_xy=np.asarray(coordinates_xy, dtype=np.int32),
+        labels=np.asarray(labels, dtype=np.int64),
+        class_names=list(class_names),
+        classifier=classifier,
+        parameters=None if parameters is None else dict(parameters),
+        feature_mode=feature_mode,
+        options=resolved_options,
+        feature_record=feature_record,
+        input_shape=input_shape,
+        input_sha256=input_sha256,
+        progress_callback=progress_callback,
+    )
+    record = {
+        "worker_schema_version": WORKER_SCHEMA_VERSION,
+        "provider_contract_version": PROVIDER_CONTRACT_VERSION,
+        "provider": "symmetry-learn",
+        "provider_version": __version__,
+        **result.record,
+    }
+    return ProviderTraditionalMLResult(arrays=result.arrays, record=record)

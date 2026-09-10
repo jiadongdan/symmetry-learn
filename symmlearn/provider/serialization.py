@@ -38,6 +38,22 @@ def persist_prediction_result(
     return record
 
 
+def persist_traditional_result(
+    result: Any,
+    *,
+    output_path: str | Path,
+    record_path: str | Path,
+) -> dict[str, Any]:
+    """Write one traditional-ML result using the shared NPZ and JSON contract.
+
+    No pickle or joblib estimator artifact is ever written: training and
+    prediction stay inside one job in this version.
+    """
+    return persist_prediction_result(
+        result, output_path=output_path, record_path=record_path
+    )
+
+
 def persist_provider_result(
     result: Any,
     *,

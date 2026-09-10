@@ -11,7 +11,7 @@ versioned PyPI distributions:
 | Distribution | Source directory | Release tag |
 | --- | --- | --- |
 | symmetry-learn-default-model | model_packages/symmetry_learn_default_model | model-v1.0.0 |
-| symmetry-learn | repository root | v0.1.0 |
+| symmetry-learn | repository root | v0.1.1 |
 
 ## One-time account setup
 
@@ -64,9 +64,14 @@ Approve the `pypi` environment job. Wait for the model wheel to appear on PyPI
 before publishing the library:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
+
+Version 0.1.1 adds two public Provider capabilities over the initial design:
+portable saved-model prediction and the `traditional_ml_analyze` operation with
+its `traditional_ml` capability block. Providers older than 0.1.1 do not expose
+the traditional machine-learning operation or its classifier defaults.
 
 Approve its `pypi` environment job. Tag versions must match package metadata.
 The library publishing job verifies that its exact model dependency has an

@@ -7,6 +7,10 @@ from typing import Any
 
 from symmlearn import __version__
 from symmlearn.models.registry import build_registered_model, model_capabilities
+from symmlearn.traditional_ml.contracts import (
+    TRADITIONAL_ML_OPERATION,
+    traditional_ml_capability,
+)
 
 from .contracts import PROVIDER_CONTRACT_VERSION
 
@@ -31,8 +35,12 @@ def provider_capabilities() -> dict[str, Any]:
             "few_shot_analyze_precomputed_features",
             "probe_model",
             "predict_with_fine_tuned_model",
+            TRADITIONAL_ML_OPERATION,
         ],
         "models": model_capabilities(),
+        # Harness validates this block instead of inventing classifier
+        # defaults locally. The block is independent of any pretrained model.
+        "traditional_ml": traditional_ml_capability(),
     }
 
 
@@ -40,4 +48,5 @@ __all__ = [
     "build_registered_model",
     "model_capabilities",
     "provider_capabilities",
+    "traditional_ml_capability",
 ]

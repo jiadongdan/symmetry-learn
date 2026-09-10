@@ -25,14 +25,28 @@ from symmlearn.patches import (
 )
 
 from .api import compute_features as compute_provider_features
-from .api import few_shot_analyze, probe_model, predict_with_fine_tuned_model
+from .api import (
+    few_shot_analyze,
+    probe_model,
+    predict_with_fine_tuned_model,
+    traditional_ml_analyze,
+)
 from .contracts import (
     MODEL_IDENTIFIER,
     PROVIDER_CONTRACT_VERSION,
     WORKER_SCHEMA_VERSION,
 )
 from .registry import provider_capabilities
-from .serialization import persist_prediction_result, persist_provider_result
+from .serialization import (
+    persist_prediction_result,
+    persist_provider_result,
+    persist_traditional_result,
+)
+from symmlearn.features.eight_channel.contract import CHANNEL_NAMES
+from symmlearn.traditional_ml.contracts import (
+    IMAGE_PLUS_SYMMETRY_MAPS_MODE,
+    TraditionalMLOptions,
+)
 from symmlearn.workflows.saved_model_prediction import SavedModelPredictor
 
 
@@ -424,6 +438,115 @@ def run_prediction_worker(job_path: Path) -> dict[str, Any]:
     }
 
 
+def _required_job_string(job: dict[str, Any], key: str) -> str:
+    value = str(job.get(key, "")).strip()
+    if not value:
+        raise ValueError(f"A traditional ML job requires {key!r}.")
+    return value
+
+
+def _validate_feature_provenance(
+    image: np.ndarray,
+    features: np.ndarray,
+    feature_record: dict[str, Any],
+) -> None:
+    """Check that one feature artifact belongs to the supplied input image.
+
+    The stored feature record carries the validated feature shape, the channel
+    contract, and the map-computation options, so the Worker can refuse a job
+    whose image and features do not belong together.
+    """
+    recorded_shape = feature_record.get("shape")
+    if not isinstance(recorded_shape, (list, tuple)) or len(recorded_shape) != 3:
+        raise ValueError("The feature record does not declare a validated shape.")
+    if [int(value) for value in recorded_shape] != [
+        int(value) for value in features.shape
+    ]:
+        raise ValueError(
+            "The feature record shape disagrees with the stored feature array."
+        )
+    if (int(features.shape[1]), int(features.shape[2])) != (
+        int(image.shape[0]),
+        int(image.shape[1]),
+    ):
+        raise ValueError(
+            "The feature artifact and the input image do not share a shape."
+        )
+    if list(feature_record.get("channel_names") or []) != list(CHANNEL_NAMES):
+        raise ValueError(
+            "The feature record does not carry the eight-channel contract."
+        )
+
+
+def run_traditional_ml_worker(job_path: Path) -> dict[str, Any]:
+    """Train one conventional classifier and densely predict one image.
+
+    This operation is independent of every pretrained checkpoint: it never
+    resolves a model, weight, adapter, or model-state path.
+    """
+    job = _load_job(job_path)
+    features_path = _required_job_string(job, "features_path")
+    features_record_path = _required_job_string(job, "features_record_path")
+    output_path = _required_job_string(job, "output_path")
+    record_path = _required_job_string(job, "record_path")
+
+    features, feature_record = _load_precomputed_features(
+        Path(features_path), Path(features_record_path)
+    )
+    image = _load_input(Path(_required_job_string(job, "input_path")))
+    _validate_feature_provenance(image, features, feature_record)
+
+    support = job.get("support")
+    if not isinstance(support, dict):
+        raise ValueError("A traditional ML job requires a support object.")
+    for key in ("coordinates_xy", "labels", "class_names"):
+        if support.get(key) is None:
+            raise ValueError(f"A traditional ML job requires support.{key}.")
+    classifier = job.get("classifier")
+    if not isinstance(classifier, dict):
+        raise ValueError("A traditional ML job requires a classifier object.")
+    identifier = str(classifier.get("identifier", "")).strip()
+    if not identifier:
+        raise ValueError("A traditional ML job requires classifier.identifier.")
+    parameters = classifier.get("parameters")
+    if parameters is not None and not isinstance(parameters, dict):
+        raise TypeError("classifier.parameters must be an object when provided.")
+
+    input_sha256 = job.get("input_sha256")
+    if input_sha256 is not None:
+        digest = str(input_sha256).strip().lower()
+        if len(digest) != 64 or any(
+            character not in "0123456789abcdef" for character in digest
+        ):
+            raise ValueError(
+                "input_sha256 must be a 64-character hexadecimal digest."
+            )
+        input_sha256 = digest
+
+    progress_path = (
+        None if job.get("progress_path") is None else Path(job["progress_path"])
+    )
+    result = traditional_ml_analyze(
+        features,
+        coordinates_xy=np.asarray(support["coordinates_xy"]),
+        labels=np.asarray(support["labels"]),
+        class_names=list(support["class_names"]),
+        classifier=identifier,
+        parameters=parameters,
+        feature_mode=str(job.get("feature_mode", IMAGE_PLUS_SYMMETRY_MAPS_MODE)),
+        options=TraditionalMLOptions.from_mapping(dict(job.get("options") or {})),
+        feature_record=feature_record,
+        input_shape=(int(image.shape[0]), int(image.shape[1])),
+        input_sha256=input_sha256,
+        progress_callback=(
+            None if progress_path is None else _progress_reporter(progress_path)
+        ),
+    )
+    return persist_traditional_result(
+        result, output_path=output_path, record_path=record_path
+    )
+
+
 def probe_worker(job_path: Path) -> dict[str, Any]:
     """Validate the model, checkpoint, and requested device without inference."""
     job = _load_job(job_path)
@@ -444,6 +567,7 @@ def main() -> None:
     group.add_argument("--features", type=Path)
     group.add_argument("--probe", type=Path)
     group.add_argument("--predict", type=Path)
+    group.add_argument("--traditional-ml", type=Path)
     group.add_argument("--capabilities", action="store_true")
     arguments = parser.parse_args()
     if arguments.capabilities:
@@ -452,6 +576,8 @@ def main() -> None:
         result = run_features_worker(arguments.features.resolve())
     elif arguments.predict is not None:
         result = run_prediction_worker(arguments.predict.resolve())
+    elif arguments.traditional_ml is not None:
+        result = run_traditional_ml_worker(arguments.traditional_ml.resolve())
     elif arguments.job is not None:
         result = run_worker(arguments.job.resolve())
     else:

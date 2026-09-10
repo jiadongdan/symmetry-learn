@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 import platform
@@ -116,6 +117,7 @@ def few_shot_analyze(
     model: str = MODEL_IDENTIFIER,
     precomputed_features: np.ndarray | None = None,
     precomputed_feature_record: dict[str, Any] | None = None,
+    progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> ProviderResult:
     """Fine-tune adapters and return dense local-class predictions."""
     result = run_few_shot(
@@ -130,6 +132,7 @@ def few_shot_analyze(
         options=options,
         precomputed_features=precomputed_features,
         precomputed_feature_record=precomputed_feature_record,
+        progress_callback=progress_callback,
     )
     return _provider_result(result)
 

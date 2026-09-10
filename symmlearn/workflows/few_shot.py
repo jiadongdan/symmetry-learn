@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 import platform
@@ -100,6 +101,7 @@ def run_few_shot(
     options: dict[str, Any] | None = None,
     precomputed_features: np.ndarray | None = None,
     precomputed_feature_record: dict[str, Any] | None = None,
+    progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> FewShotResult:
     """Fine-tune the selected model and produce dense local-class predictions."""
     import torch
@@ -180,6 +182,13 @@ def run_few_shot(
         task_classes=len(names),
         options=resolved_options,
         device=device,
+        progress_callback=(
+            None
+            if progress_callback is None
+            else lambda current, total: progress_callback(
+                "fine_tuning", current, total
+            )
+        ),
     )
     training = training_result.to_record()
     prediction_result = predict_dense(
@@ -190,6 +199,11 @@ def run_few_shot(
         batch_size=resolved_options["batch_size"],
         device=device,
         expected_channels=specification.input_channels,
+        progress_callback=(
+            None
+            if progress_callback is None
+            else lambda current, total: progress_callback("prediction", current, total)
+        ),
     )
     prediction = prediction_result.to_arrays()
     arrays = {

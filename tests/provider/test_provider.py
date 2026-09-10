@@ -18,6 +18,7 @@ from symmlearn.provider.worker import (
     _dense_coordinate_grid,
     _extract_patches,
     _load_job,
+    _progress_reporter,
     _validate_support,
     _validated_options,
     run_features_worker,
@@ -115,6 +116,22 @@ def test_worker_rejects_an_incompatible_schema(tmp_path: Path) -> None:
         _load_job(path)
     with pytest.raises(ValueError, match="Unsupported provider options"):
         _validated_options({"unknown": 1})
+
+
+def test_progress_writer_can_update_while_reader_is_open(tmp_path: Path) -> None:
+    progress_path = tmp_path / "progress.json"
+    report = _progress_reporter(progress_path)
+    report("fine_tuning", 1, 10)
+
+    with progress_path.open(encoding="utf-8") as reader:
+        assert json.load(reader)["current"] == 1
+        report("fine_tuning", 2, 10)
+
+    assert json.loads(progress_path.read_text(encoding="utf-8")) == {
+        "phase": "fine_tuning",
+        "current": 2,
+        "total": 10,
+    }
 
 
 def test_feature_worker_persists_reusable_feature_contract(tmp_path: Path) -> None:

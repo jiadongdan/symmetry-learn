@@ -103,6 +103,7 @@ def fine_tune_registered_model(
     task_classes: int,
     options: dict[str, Any],
     device: str,
+    progress_callback=None,
 ):
     """Apply the fine-tuning recipe registered for a model."""
     registration = _get_registration(identifier)
@@ -114,6 +115,7 @@ def fine_tune_registered_model(
         task_classes=task_classes,
         options=options,
         device=device,
+        progress_callback=progress_callback,
     )
 
 

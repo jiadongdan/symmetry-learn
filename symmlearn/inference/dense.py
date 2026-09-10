@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from math import ceil
 from typing import Any
 
 import numpy as np
@@ -51,6 +53,7 @@ def predict_dense(
     batch_size: int,
     device: str,
     expected_channels: int,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> DensePrediction:
     """Classify a dense grid without materializing every patch simultaneously."""
     coordinates, x_values, y_values = dense_coordinate_grid(
@@ -60,13 +63,16 @@ def predict_dense(
     )
     logits_batches = []
     probability_batches = []
-    for patches in iter_patch_batches(
+    total_batches = ceil(len(coordinates) / batch_size)
+    if progress_callback is not None:
+        progress_callback(0, total_batches)
+    for batch_index, patches in enumerate(iter_patch_batches(
         features,
         coordinates,
         patch_size=patch_size,
         batch_size=batch_size,
         expected_channels=expected_channels,
-    ):
+    )):
         logits, probabilities = predict_probabilities(
             model,
             patches,
@@ -75,6 +81,8 @@ def predict_dense(
         )
         logits_batches.append(logits)
         probability_batches.append(probabilities)
+        if progress_callback is not None:
+            progress_callback(batch_index + 1, total_batches)
     logits = np.concatenate(logits_batches)
     probabilities = np.concatenate(probability_batches)
     predictions = probabilities.argmax(axis=1).astype(np.int16)

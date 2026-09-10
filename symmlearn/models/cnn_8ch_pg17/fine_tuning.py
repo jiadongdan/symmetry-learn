@@ -16,6 +16,7 @@ def fine_tune(
     task_classes: int,
     options: dict[str, Any],
     device: str,
+    progress_callback=None,
 ):
     """Insert this model's adapters and optimize its task-specific parameters."""
     adapted = add_task_adapters(
@@ -32,5 +33,6 @@ def fine_tune(
         weight_decay=options["weight_decay"],
         seed=options["seed"],
         device=device,
+        progress_callback=progress_callback,
     )
     return adapted, result

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from time import perf_counter
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -35,6 +36,7 @@ def fit_adapters(
     weight_decay: float,
     seed: int,
     device: str,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> FineTuningResult:
     """Optimize trainable adapters and the local head on the support set."""
     import torch
@@ -56,7 +58,9 @@ def fit_adapters(
     best_loss = float("inf")
     best_state = None
     started = perf_counter()
-    for _ in range(epochs):
+    if progress_callback is not None:
+        progress_callback(0, epochs)
+    for epoch_index in range(epochs):
         set_adapter_training_mode(model)
         optimizer.zero_grad(set_to_none=True)
         logits = model(inputs)
@@ -84,6 +88,8 @@ def fit_adapters(
                 for name, parameter in model.named_parameters()
                 if parameter.requires_grad
             }
+        if progress_callback is not None:
+            progress_callback(epoch_index + 1, epochs)
     if best_state is None:
         raise RuntimeError("Few-shot training did not produce a model state.")
     named_parameters = dict(model.named_parameters())

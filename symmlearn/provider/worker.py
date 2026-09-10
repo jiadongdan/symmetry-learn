@@ -72,6 +72,21 @@ def _load_precomputed_features(
     return features, dict(feature_record)
 
 
+def _progress_reporter(progress_path: Path):
+    """Return a Windows-safe writer for best-effort worker progress updates."""
+
+    def write_progress(phase: str, current: int, total: int) -> None:
+        progress_path.parent.mkdir(parents=True, exist_ok=True)
+        progress_path.write_text(
+            json.dumps(
+                {"phase": phase, "current": int(current), "total": int(total)}
+            ),
+            encoding="utf-8",
+        )
+
+    return write_progress
+
+
 def _validated_options(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     """Preserve the v1 helper while delegating model option validation."""
     return validate_model_options(MODEL_IDENTIFIER, overrides)
@@ -216,6 +231,10 @@ def run_worker(job_path: Path) -> dict[str, Any]:
         )
     elif job.get("features_record_path") is not None:
         raise ValueError("A feature record path requires a precomputed features path.")
+    progress_path = (
+        None if job.get("progress_path") is None else Path(job["progress_path"])
+    )
+
     result = few_shot_analyze(
         _load_input(Path(job["input_path"])),
         coordinates_xy=np.asarray(support.get("coordinates_xy")),
@@ -228,6 +247,9 @@ def run_worker(job_path: Path) -> dict[str, Any]:
         model=str(method.get("identifier", MODEL_IDENTIFIER)),
         precomputed_features=precomputed_features,
         precomputed_feature_record=precomputed_feature_record,
+        progress_callback=(
+            None if progress_path is None else _progress_reporter(progress_path)
+        ),
     )
     return persist_provider_result(
         result,

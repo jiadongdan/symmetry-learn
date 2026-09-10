@@ -105,8 +105,16 @@ result = few_shot_analyze(
     labels=labels,
     class_names=["Phase A", "Phase B"],
     options={"device": "cuda"},
+    precomputed_features=features,
+    precomputed_feature_record=feature_record,
 )
 ```
+
+Passing both reusable-feature arguments avoids computing the eight symmetry
+channels again during fine-tuning. The Provider validates the cached array and
+record against the image shape, feature pipeline, channel order, feature
+options, and resolved device before reuse. Omit both arguments when the workflow
+should compute fresh features internally.
 
 The default workflow requires at least three support points per local class;
 five points per class are recommended. It freezes the pretrained network,
@@ -129,7 +137,10 @@ result = few_shot_analyze(
 ```
 
 External orchestrators can use the versioned worker contract through
-`python -m symmlearn.provider.worker --capabilities`, `--probe JOB.json`, or
-`--job JOB.json`. Existing explicit-checkpoint jobs remain compatible. A job
-that omits `checkpoint_path` uses the installed default weight. Optional model
-weights are never downloaded silently.
+`python -m symmlearn.provider.worker --capabilities`, `--probe JOB.json`,
+`--features JOB.json`, or `--job JOB.json`. A feature job writes a reusable NPZ
+array and its JSON provenance record. An analysis job can reuse those artifacts
+by supplying both `features_path` and `features_record_path`; supplying neither
+computes fresh features. Existing explicit-checkpoint jobs remain compatible. A
+job that omits `checkpoint_path` uses the installed default weight. Optional
+model weights are never downloaded silently.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symmetry-learn"
-version = "0.1.0"
+version = "0.1.1"
 description = "Deep learning for STEM images by symmetry"
 readme = "README.md"
 authors = [{ name = "Jiadong Dan" }]

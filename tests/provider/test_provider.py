@@ -57,7 +57,7 @@ def test_capabilities_define_one_versioned_model() -> None:
     assert models[0]["maximum_shots_per_class"] == 50
     assert models[0]["default_weight"]["identifier"] == "pg17-symmetry-v1"
     assert models[0]["default_weight"]["bundled"] is True
-    assert capabilities["provider_version"] == "0.1.0"
+    assert capabilities["provider_version"] == "0.1.1"
     assert capabilities["runtime"]["torch_version"]
 
 
